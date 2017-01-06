@@ -137,6 +137,30 @@ def cc_error(d1, d2, deltat, cc_shift, cc_dlna, sigma_dt_min, sigma_dlna_min):
     return sigma_dt, sigma_dlna
 
 
+def cc_adj(s, cc_shift, cc_dlna, deltat, sigma_dt, sigma_dlna):
+    """
+    cross correlation adjoint source and misfit
+    """
+
+    nlen_t = len(s)
+    fp_t = np.zeros(nlen_t)
+    fq_t = np.zeros(nlen_t)
+    misfit_p = 0.0
+    misfit_q = 0.0
+
+    dsdt = np.gradient(s,deltat)
+    nnorm = - simps(y=dsdt*dsdt, dx=deltat)
+    cc_tshift = cc_shift * deltat
+    fp_t[0:nlen_t] = -1.0 * dsdt[0:nlen_t] * cc_tshift / nnorm / sigma_dt**2
+
+    mnorm = simps(y=s*s, dx=deltat)
+    fq_t[0:nlen_t] = -1.0 * s[0:nlen_t] * cc_dlna / mnorm / sigma_dlna**2
+    misfit_p = 0.5 * (cc_tshift/sigma_dt)**2
+    misfit_q = 0.5 * (cc_dlna/sigma_dlna)**2
+
+    return fp_t, fq_t, misfit_p, misfit_q
+
+
 def subsample_xcorr_shift(d, s):
     """
     Calculate the correlation time shift around the maximum amplitude of the
@@ -219,29 +243,36 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
         cc_dlna = 0.5 * np.log(sum(d[0:nlen]*d[0:nlen]) /
                                sum(s[0:nlen]*s[0:nlen]))
+        
+        # uncertainty estimate based on cross-correlations
+        sigma_dt = 1.0
+        sigma_dlna = 1.0
 
-        sigma_dt, sigma_dlna = cc_error(d, s, deltat, i_shift, cc_dlna,
-                                        config.dt_sigma_min,
-                                        config.dlna_sigma_min)
+        if config.use_cc_error:
+            sigma_dt, sigma_dlna = cc_error(d, s, deltat, i_shift, cc_dlna,
+                    config.dt_sigma_min,
+                    config.dlna_sigma_min)
 
-        misfit_dt = 0.5 * (t_shift/sigma_dt) ** 2
-        misfit_dlna = 0.5 * (cc_dlna/sigma_dlna) ** 2
+        # calculate c.c. adjoint source
+        fp_t, fq_t, misfit_p, misfit_q =\
+            cc_adj(s, i_shift, cc_dlna, deltat,
+                   sigma_dt, sigma_dlna)
 
-        misfit_sum_p += misfit_dt
-        misfit_sum_q += misfit_dlna
+        misfit_sum_p += misfit_p
+        misfit_sum_q += misfit_q
 
-        dsdt = np.gradient(s, deltat)
-        nnorm = simps(y=dsdt*dsdt, dx=deltat)
-        fp[left_sample:right_sample] = dsdt[:] * t_shift / nnorm / sigma_dt**2
-
-        mnorm = simps(y=s*s, dx=deltat)
-        fq[left_sample:right_sample] =\
-            -1.0 * s[:] * cc_dlna / mnorm / sigma_dlna ** 2
+        # YY: All adjoint sources will need windowing taper again
+        window_taper(fp_t, taper_percentage=config.taper_percentage,
+                     taper_type=config.taper_type)
+        window_taper(fq_t, taper_percentage=config.taper_percentage,
+                     taper_type=config.taper_type)
+        fp[left_sample:right_sample] = fp_t[0:nlen]
+        fq[left_sample:right_sample] = fq_t[0:nlen]
 
         measure_wins["type"] = "cc"
         measure_wins["dt"] = t_shift
-        measure_wins["misfit_dt"] = misfit_dt
-        measure_wins["misfit_dlan"] = misfit_dlna
+        measure_wins["misfit_dt"] = misfit_p
+        measure_wins["misfit_dlan"] = misfit_q
 
         measurement.append(measure_wins)
 
@@ -252,8 +283,9 @@ def calculate_adjoint_source(observed, synthetic, config, window,
     ret_val_q["measurement"] = measurement
 
     if adjoint_src is True:
-        ret_val_p["adjoint_source"] = fp[::-1]
-        ret_val_q["adjoint_source"] = fq[::-1]
+        # YY: not to reverse in time
+        ret_val_p["adjoint_source"] = fp
+        ret_val_q["adjoint_source"] = fq
 
     if config.measure_type == "dt":
         if figure:

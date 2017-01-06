@@ -179,6 +179,7 @@ class ConfigCrossCorrelation(object):
                  taper_type='hann',
                  taper_percentage=0.3,
                  measure_type='dt',
+                 use_cc_error=True,
                  dt_sigma_min=1.0,
                  dlna_sigma_min=0.5):
 
@@ -188,6 +189,7 @@ class ConfigCrossCorrelation(object):
         self.taper_type = taper_type
         self.taper_percentage = taper_percentage
         self.measure_type = measure_type
+        self.use_cc_error = use_cc_error
         self.dt_sigma_min = dt_sigma_min
         self.dlna_sigma_min = dlna_sigma_min
 
