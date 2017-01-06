@@ -1,29 +1,27 @@
 #!/usr/bin/env python
 # -*- encoding: utf8 -*-
 """
-Simple waveform misfit and adjoint source.
-
-This file will also serve as an explanation of how to add new adjoint
-sources to Pyadjoint.
+Instantaneous phase misfit.
 
 :copyright:
-    created by Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
-    modified by Yanhua O. Yuan (yanhuay@princeton.edu), 2017
+    created by Yanhua O. Yuan (yanhuay@princeton.edu), 2016
 :license:
     BSD 3-Clause ("BSD New" or "BSD Simplified")
 """
-from __future__ import absolute_import, division, print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+from scipy.integrate import simps
+from scipy import signal
+
+from ..utils import generic_adjoint_source_plot
+from ..utils import window_taper
 
 import numpy as np
-from scipy.integrate import simps
-
-from ..utils import generic_adjoint_source_plot, window_taper
-from ..config import ConfigWaveForm
-
 
 # This is the verbose and pretty name of the adjoint source defined in this
 # function.
-VERBOSE_NAME = "Waveform Misfit"
+VERBOSE_NAME = "Instantaneous Phase Misfit"
 
 # Long and detailed description of the adjoint source defined in this file.
 # Don't spare any details. This will be rendered as restructured text in the
@@ -31,33 +29,6 @@ VERBOSE_NAME = "Waveform Misfit"
 # Otherwise most backslashes will have a special meaning which messes with the
 # TeX like formulas.
 DESCRIPTION = r"""
-This is the simplest of all misfits and is defined as the squared difference
-between observed and synthetic data. The misfit :math:`\chi(\mathbf{m})` for a
-given Earth model :math:`\mathbf{m}` and a single receiver and component is
-given by
-
-.. math::
-
-    \chi (\mathbf{m}) = \frac{1}{2} \int_0^T \left| \mathbf{d}(t) -
-    \mathbf{s}(t, \mathbf{m}) \right| ^ 2 dt
-
-:math:`\mathbf{d}(t)` is the observed data and
-:math:`\mathbf{s}(t, \mathbf{m})` the synthetic data.
-
-The adjoint source for the same receiver and component is given by
-
-.. math::
-
-    f^{\dagger}(t) = - \left[ \mathbf{d}(T - t) -
-    \mathbf{s}(T - t, \mathbf{m}) \right]
-
-For the sake of simplicity we omit the spatial Kronecker delta and define
-the adjoint source as acting solely at the receiver's location. For more
-details, please see [Tromp2005]_ and [Bozdag2011]_.
-
-This particular implementation here uses
-`Simpson's rule <http://en.wikipedia.org/wiki/Simpson's_rule>`_
-to evaluate the definite integral.
 """
 
 # Optional: document any additional parameters this particular adjoint sources
@@ -76,16 +47,8 @@ ADDITIONAL_PARAMETERS = r"""
 """
 
 
-# Each adjoint source file must contain a calculate_adjoint_source()
-# function. It must take observed, synthetic, min_period, max_period,
-# left_window_border, right_window_border, adjoint_src, and figure as
-# parameters. Other optional keyword arguments are possible.
 def calculate_adjoint_source(observed, synthetic, config, window,
                              adjoint_src, figure):  # NOQA
-
-    if not isinstance(config, ConfigWaveForm):
-        raise ValueError("Wrong configure parameters for waveform "
-                         "adjoint source")
 
     ret_val = {}
 
@@ -100,7 +63,6 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
     # loop over time windows
     for wins in window:
-
         measure_wins = {}
 
         left_window_border = wins[0]
@@ -124,25 +86,49 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         window_taper(s, taper_percentage=config.taper_percentage,
                      taper_type=config.taper_type)
 
-        diff = s - d
+        E_s = abs(signal.hilbert(s))
+        E_d = abs(signal.hilbert(d))
+        Hilbt_s = np.imag(signal.hilbert(s))
+        Hilbt_d = np.imag(signal.hilbert(d))
+
+        thrd_s = config.wtr_env*E_s.max()
+        thrd_d = config.wtr_env*E_d.max()
+        E_s_wtr = E_s + thrd_s
+        E_d_wtr = E_d + thrd_d
+
+        diff_real = s/E_s_wtr - d/E_d_wtr
+        diff_imag = Hilbt_s/E_s_wtr - Hilbt_d/E_d_wtr
+
         # Integrate with the composite Simpson's rule.
-        diff_w = diff * -1.0
-        window_taper(diff_w, taper_percentage=config.taper_percentage,
+        diff_r = diff_real * -1.0
+        diff_i = diff_imag * -1.0
+        window_taper(diff_r, taper_percentage=config.taper_percentage,
                      taper_type=config.taper_type)
-        # for some reason the 0.5 (see 2012 measure_adj mannual, P11) is
-        # not in misfit definetion in measure_adj
-        # misfit_sum += 0.5 * simps(y=diff_w**2, dx=deltat)
-        misfit_win = 0.5 * simps(y=diff_w**2, dx=deltat)
-        misfit_sum += misfit_win
+        window_taper(diff_i, taper_percentage=config.taper_percentage,
+                     taper_type=config.taper_type)
+
+        misfit_sum += 0.5 * (simps(y=diff_r**2, dx=deltat) +
+                             simps(y=diff_i**2, dx=deltat))
+
+        E_s_wtr_cubic = E_s_wtr**3
+        adj_real = diff_real * Hilbt_s**2 / E_s_wtr_cubic \
+            + np.imag(signal.hilbert(diff_real * s * Hilbt_s / E_s_wtr_cubic))
+        adj_imag = - diff_imag * s * Hilbt_s / E_s_wtr_cubic \
+            - np.imag(signal.hilbert(diff_imag * s**2 / E_s_wtr_cubic))
 
         # YY: All adjoint sources will need windowing taper again
-        window_taper(diff, taper_percentage=config.taper_percentage,
+        window_taper(adj_real, taper_percentage=config.taper_percentage,
                      taper_type=config.taper_type)
-        adj[left_sample: right_sample] = diff[0:nlen]
+        window_taper(adj_imag, taper_percentage=config.taper_percentage,
+                     taper_type=config.taper_type)
 
-        measure_wins["type"] = "wf"
-        measure_wins["difference"] = np.mean(diff)
-        measure_wins["misfit"] = misfit_win
+        adj[left_sample: right_sample] = (adj_real[0:nlen] + adj_imag[0:nlen])
+
+        measure_wins["type"] = "ip"
+        measure_wins["diff_real"] = np.mean(diff_real)
+        measure_wins["diff_imag"] = np.mean(diff_imag)
+        measure_wins["misfit_real"] = diff_real
+        measure_wins["misfit_real"] = diff_imag
 
         measurement.append(measure_wins)
 
@@ -150,8 +136,8 @@ def calculate_adjoint_source(observed, synthetic, config, window,
     ret_val["measurement"] = measurement
 
     if adjoint_src is True:
-        # YY: NOT to Reverse in time
-        ret_val["adjoint_source"] = adj
+        # YY: not to Reverse in time
+        ret_val["adjoint_source"] = adj[:]
 
     if figure:
         # return NotImplemented

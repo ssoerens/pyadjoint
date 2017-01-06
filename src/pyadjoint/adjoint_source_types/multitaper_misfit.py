@@ -4,7 +4,7 @@
 Multitaper based phase and amplitude misfit and adjoint source.
 
 :copyright:
-    created by Yanhua O. Yuan (yanhuay@princeton.edu) 2017
+    created by Yanhua O. Yuan (yanhuay@princeton.edu), 2016
     modified by Youyi Ruan (youyir@princeton.edu), 2016
     modified by Matthieu Lefebvre (ml15@princeton.edu), 2016
 :license:
@@ -211,9 +211,10 @@ def get_min_frequency_limit(deltat, df, fnum, i_ampmax, ifreq_min,
 
     for iw in range(fnum - 1, 0, -1):
         if iw < i_ampmax:
-            ## YY: update is_search
-            nfreq_min,is_search = search_frequency_limit(is_search, iw, nfreq_min,
-                                               s_spectra, water_threshold)
+            # YY: update is_search
+            nfreq_min, is_search = \
+                    search_frequency_limit(is_search, iw, nfreq_min,
+                                           s_spectra, water_threshold)
     # assume there are at least N cycles within the window
     return max(nfreq_min,
                int(ncycle_in_window/(nlen*deltat)/df) - 1,
@@ -227,9 +228,10 @@ def get_max_frequency_limit(deltat, df, fnum, i_ampmax, ifreq_max, s_spectra,
 
     for iw in range(0, fnum):
         if iw > i_ampmax:
-            ## YY: update is_search
-            nfreq_max,is_search = search_frequency_limit(is_search, iw, nfreq_max,
-                                               s_spectra, water_threshold)
+            # YY: update is_search
+            nfreq_max, is_search = \
+                    search_frequency_limit(is_search, iw, nfreq_max,
+                                           s_spectra, water_threshold)
     # Don't go beyond the Nyquist frequency
     return min(nfreq_max, int(1.0/(2*deltat)/df) - 1, ifreq_max)
 
@@ -258,8 +260,8 @@ def search_frequency_limit(is_search, index, nfreq_limit, spectra,
         is_search = True
         nfreq_limit = index
 
-    ## YY: return is_search
-    return nfreq_limit,is_search
+    # YY: return is_search
+    return nfreq_limit, is_search
 
 
 def mt_measure_select(nfreq_min, nfreq_max, df, nlen, deltat, dtau_w, dt_fac,

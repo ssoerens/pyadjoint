@@ -5,8 +5,8 @@ Cross correlation traveltime misfit.
 
 :copyright:
     created by Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
-    modified by Youyi Ruan (youyir@princeton.edu) 2016
-    modified by Yanhua O. Yuan (yanhuay@princeton.edu) 2017
+    modified by Youyi Ruan (youyir@princeton.edu), 2016
+    modified by Yanhua O. Yuan (yanhuay@princeton.edu), 2017
 :license:
     BSD 3-Clause ("BSD New" or "BSD Simplified")
 """
@@ -149,7 +149,7 @@ def cc_adj(s, cc_shift, cc_dlna, deltat, sigma_dt, sigma_dlna):
     misfit_p = 0.0
     misfit_q = 0.0
 
-    dsdt = np.gradient(s,deltat)
+    dsdt = np.gradient(s, deltat)
     nnorm = - simps(y=dsdt*dsdt, dx=deltat)
     cc_tshift = cc_shift * deltat
     fp_t[0:nlen_t] = -1.0 * dsdt[0:nlen_t] * cc_tshift / nnorm / sigma_dt**2
@@ -244,15 +244,16 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
         cc_dlna = 0.5 * np.log(sum(d[0:nlen]*d[0:nlen]) /
                                sum(s[0:nlen]*s[0:nlen]))
-        
+
         # uncertainty estimate based on cross-correlations
         sigma_dt = 1.0
         sigma_dlna = 1.0
 
         if config.use_cc_error:
-            sigma_dt, sigma_dlna = cc_error(d, s, deltat, i_shift, cc_dlna,
-                    config.dt_sigma_min,
-                    config.dlna_sigma_min)
+            sigma_dt, sigma_dlna = \
+                    cc_error(d, s, deltat, i_shift, cc_dlna,
+                             config.dt_sigma_min,
+                             config.dlna_sigma_min)
 
         # calculate c.c. adjoint source
         fp_t, fq_t, misfit_p, misfit_q =\

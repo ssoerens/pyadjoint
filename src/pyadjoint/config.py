@@ -4,8 +4,9 @@
 Configuration object for pyadjoint.
 
 :copyright:
-    Youyi Ruan (youyir@princeton.edu), 2016
-    Lion Krischer (krischer@geophysik.uni-muenchen.de), 2016
+    created by Lion Krischer (krischer@geophysik.uni-muenchen.de), 2016
+    modified by Youyi Ruan (youyir@princeton.edu), 2016
+    modified by Yanhua O. Yuan (yanhuay@princeton.edu), 2017
 :license:
     GNU General Public License, Version 3
     (http://www.gnu.org/copyleft/gpl.html)
@@ -194,9 +195,18 @@ class ConfigCrossCorrelation(object):
         self.dlna_sigma_min = dlna_sigma_min
 
 
-class ConfigDoubleDifference(object):
-    pass
-
-
 class ConfigInstanteneousPhase(object):
+    def __init__(self, min_period, max_period,
+                 taper_type='hann',
+                 taper_percentage=0.3,
+                 wtr_env=0.2):
+        self.min_period = min_period
+        self.max_period = max_period
+
+        self.taper_type = taper_type
+        self.taper_percentage = taper_percentage
+        self.wtr_env = wtr_env
+
+
+class ConfigDoubleDifference(object):
     pass
