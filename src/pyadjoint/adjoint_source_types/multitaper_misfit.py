@@ -4,9 +4,9 @@
 Multitaper based phase and amplitude misfit and adjoint source.
 
 :copyright:
-    Youyi Ruan (youyir@princeton.edu), 2016
-    Matthieu Lefebvre (ml15@princeton.edu), 2016
-    Yanhua O. Yuan (yanhuay@princeton.edu), 2015
+    created by Yanhua O. Yuan (yanhuay@princeton.edu) 2017
+    modified by Youyi Ruan (youyir@princeton.edu), 2016
+    modified by Matthieu Lefebvre (ml15@princeton.edu), 2016
 :license:
     BSD 3-Clause ("BSD New" or "BSD Simplified")
 """
@@ -207,16 +207,13 @@ def get_min_frequency_limit(deltat, df, fnum, i_ampmax, ifreq_min,
                             ncycle_in_window, nlen, s_spectra,
                             water_threshold):
     nfreq_min = 0
-    # is_search = True
+    is_search = True
 
-    # === Youyi Ruan 11/03/2016:
-    #    to keep it consistent with measure_adj and not search the minimum
-    #    frequency bound.
-    # for iw in range(fnum - 1, 0, -1):
-    #    if iw < i_ampmax:
-    #        nfreq_min = search_frequency_limit(is_search, iw, nfreq_min,
-    #                                           s_spectra, water_threshold)
-
+    for iw in range(fnum - 1, 0, -1):
+        if iw < i_ampmax:
+            ## YY: update is_search
+            nfreq_min,is_search = search_frequency_limit(is_search, iw, nfreq_min,
+                                               s_spectra, water_threshold)
     # assume there are at least N cycles within the window
     return max(nfreq_min,
                int(ncycle_in_window/(nlen*deltat)/df) - 1,
@@ -230,7 +227,8 @@ def get_max_frequency_limit(deltat, df, fnum, i_ampmax, ifreq_max, s_spectra,
 
     for iw in range(0, fnum):
         if iw > i_ampmax:
-            nfreq_max = search_frequency_limit(is_search, iw, nfreq_max,
+            ## YY: update is_search
+            nfreq_max,is_search = search_frequency_limit(is_search, iw, nfreq_max,
                                                s_spectra, water_threshold)
     # Don't go beyond the Nyquist frequency
     return min(nfreq_max, int(1.0/(2*deltat)/df) - 1, ifreq_max)
@@ -260,7 +258,8 @@ def search_frequency_limit(is_search, index, nfreq_limit, spectra,
         is_search = True
         nfreq_limit = index
 
-    return nfreq_limit
+    ## YY: return is_search
+    return nfreq_limit,is_search
 
 
 def mt_measure_select(nfreq_min, nfreq_max, df, nlen, deltat, dtau_w, dt_fac,
@@ -946,9 +945,9 @@ def calculate_adjoint_source(observed, synthetic, config, window,
     ret_val_q["measurement"] = measurement
 
     if adjoint_src:
-        # Reverse in time and reverse the actual values.
-        ret_val_p["adjoint_source"] = fp[::-1]
-        ret_val_q["adjoint_source"] = fq[::-1]
+        # YY: NOT to Reverse in time and reverse the actual values.
+        ret_val_p["adjoint_source"] = fp
+        ret_val_q["adjoint_source"] = fq
 
     if config.measure_type == "dt":
         if figure:

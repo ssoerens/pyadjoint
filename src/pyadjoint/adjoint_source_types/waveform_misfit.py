@@ -7,7 +7,8 @@ This file will also serve as an explanation of how to add new adjoint
 sources to Pyadjoint.
 
 :copyright:
-    Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
+    created by Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
+    modified by Yanhua O. Yuan (yanhuay@princeton.edu) 2017
 :license:
     BSD 3-Clause ("BSD New" or "BSD Simplified")
 """

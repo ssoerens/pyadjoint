@@ -4,8 +4,9 @@
 Cross correlation traveltime misfit.
 
 :copyright:
-    Youyi Ruan (youyir@princeton.edu) 2016
-    Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
+    created by Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
+    modified by Youyi Ruan (youyir@princeton.edu) 2016
+    modified by Yanhua O. Yuan (yanhuay@princeton.edu) 2017
 :license:
     BSD 3-Clause ("BSD New" or "BSD Simplified")
 """
