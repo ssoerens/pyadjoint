@@ -20,7 +20,7 @@ from .. import logger
 from ..utils import generic_adjoint_source_plot, window_taper
 from ..config import ConfigMultiTaper
 from ..dpss import dpss_windows
-
+from .cc_traveltime_misfit import _xcorr_shift, cc_error, cc_adj
 
 # This is the verbose and pretty name of the adjoint source defined in this
 # function.
@@ -89,54 +89,6 @@ in which :math:`h_k(t)` is one (the :math:`k`th) of multi-tapers.
 #    can use. Defaults to ``"hann"``.
 #
 # """
-
-
-def _xcorr_shift(d, s):
-    """
-    Calculate cross correlation shift in points
-    """
-    cc = np.correlate(d, s, mode="full")
-    time_shift = cc.argmax() - len(d) + 1
-    return time_shift
-
-
-def cc_error(d1, d2, deltat, cc_shift, cc_dlna, sigma_dt_min, sigma_dlna_min):
-    """
-    Estimate error for dt and dlna with uncorrelation assumption
-    copied from c.c. misfit. should not duplicate the code but keep it for
-    now and may need to move to utils later
-    """
-    nlen_t = len(d1)
-
-    # make cc-based corrections to d2
-    d2_cc_dt = np.zeros(nlen_t)
-    d2_cc_dtdlna = np.zeros(nlen_t)
-
-    for index in range(0, nlen_t):
-        index_shift = index - cc_shift
-
-        if 0 <= index_shift < nlen_t:
-            d2_cc_dt[index] = d2[index_shift]
-            d2_cc_dtdlna[index] = np.exp(cc_dlna) * d2[index_shift]
-
-    # time derivative of d2_cc (velocity)
-    d2_cc_vel = np.gradient(d2_cc_dtdlna, deltat)
-
-    # Note: Beware of the first and last value in gradient calculation,
-    #       ignored for safety reason, will be added in future
-    sigma_dt_top = np.sum((d1 - d2_cc_dtdlna) ** 2)
-    sigma_dt_bot = np.sum(d2_cc_vel ** 2)
-
-    sigma_dlna_top = sigma_dt_top
-    sigma_dlna_bot = np.sum(d2_cc_dt ** 2)
-
-    sigma_dt = np.sqrt(sigma_dt_top / sigma_dt_bot)
-    sigma_dlna = np.sqrt(sigma_dlna_top / sigma_dlna_bot)
-
-    sigma_dt = max(sigma_dt, sigma_dt_min)
-    sigma_dlna = max(sigma_dlna, sigma_dlna_min)
-
-    return sigma_dt, sigma_dlna
 
 
 def frequency_limit(s, nlen, nlen_f, deltat, df, wtr, ncycle_in_window,
@@ -507,29 +459,6 @@ def mt_error(d1, d2, deltat, tapers, wvec, df, nlen_f, waterlevel_mtm,
         err_dlna[nfreq_min: nfreq_max] / (ntaper * (ntaper - 1)))
 
     return err_phi, err_abs, err_dtau, err_dlna
-
-
-def cc_adj(synt, cc_shift, cc_dlna, deltat, err_dt_cc, err_dlna_cc):
-    """
-    cross correlation adjoint source and misfit
-    """
-
-    misfit_p = 0.0
-    misfit_q = 0.0
-
-    dsdt = np.gradient(synt) / deltat
-
-    nnorm = simps(y=dsdt*dsdt, dx=deltat)
-    dt_adj = cc_shift * deltat / err_dt_cc**2 / nnorm * dsdt
-
-    mnorm = simps(y=synt*synt, dx=deltat)
-    am_adj = -1.0 * cc_dlna / err_dlna_cc**2 / mnorm * synt
-
-    cc_tshift = cc_shift * deltat
-    misfit_p = 0.5 * (cc_tshift/err_dt_cc)**2
-    misfit_q = 0.5 * (cc_dlna/err_dlna_cc)**2
-
-    return dt_adj, am_adj, misfit_p, misfit_q
 
 
 def mt_adj(d1, d2, deltat, tapers, dtau_mtm, dlna_mtm, df, nlen_f,

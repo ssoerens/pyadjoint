@@ -156,6 +156,7 @@ def cc_adj(s, cc_shift, cc_dlna, deltat, sigma_dt, sigma_dlna):
 
     mnorm = simps(y=s*s, dx=deltat)
     fq_t[0:nlen_t] = -1.0 * s[0:nlen_t] * cc_dlna / mnorm / sigma_dlna**2
+
     misfit_p = 0.5 * (cc_tshift/sigma_dt)**2
     misfit_q = 0.5 * (cc_dlna/sigma_dlna)**2
 
