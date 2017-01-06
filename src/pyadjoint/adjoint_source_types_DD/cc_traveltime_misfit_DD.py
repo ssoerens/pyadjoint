@@ -110,8 +110,8 @@ def cc_adj_DD(s1, s2, shift_syn, dd_shift, deltat, sigma_dt):
     nnorm12 = -simps(y=ds1dt*ds2_cc_vt, dx=deltat)
 
     dd_tshift = dd_shift * deltat
-    fp1_t[0:nlen_t] = + 1.0 * ds2_cc_vt[0:nlen_t] * dd_tshift / nnorm12 / sigma_dt**2
-    fp2_t[0:nlen_t] = - 1.0 * ds1_cc_vt[0:nlen_t] * dd_shift * deltat / nnorm12 / sigma_dt**2
+    fp1_t = + 1.0 * ds2_cc_vt * dd_tshift / nnorm12 / sigma_dt**2
+    fp2_t = - 1.0 * ds1_cc_vt * dd_shift * deltat / nnorm12 / sigma_dt**2
 
     misfit = 0.5 * (dd_tshift/sigma_dt)**2
 
