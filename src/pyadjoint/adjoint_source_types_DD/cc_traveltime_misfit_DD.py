@@ -22,16 +22,19 @@ from pyadjoint.adjoint_source_types.cc_traveltime_misfit \
 VERBOSE_NAME = "Double-Difference Cross Correlation Traveltime Misfit"
 
 DESCRIPTION = r"""
-Traveltime misfits simply measure the squared traveltime difference. The
-misfit :math:`\chi(\mathbf{m})` for a given Earth model :math:`\mathbf{m}`
-and a single receiver and component is given by
+Double-difference adjoint seismic tomography based on cc traveltime
+Explained in [Yanhua O. Yuan; Frederik J. Simons; Jeroen Tromp
+Geophys. J. Int. 2016 : ggw233v1-ggw233].
+http://dx.doi.org/10.1093/gji/ggw233
 
 .. math::
 
-    \chi (\mathbf{m}) = \frac{1}{2} \left[ T^{obs} - T(\mathbf{m}) \right] ^ 2
+    \chi (\mathbf{m}) = \frac{1}{2} \sum_{i,j} \left[ \Delta T_{i,j}^{syn} - 
+    \Delta T_{i,j}^{obs} \right] ^ 2
 
-:math:`T^{obs}` is the observed traveltime, and :math:`T(\mathbf{m})` the
-predicted traveltime in Earth model :math:`\mathbf{m}`.
+:math:`T_{i,j}^{syn}` is the synthetic traveltime shift of s1 and s2, 
+and :math:`\Delta T_{i,j}^{obs}` the
+observed traveltime shift of d1 and d2.
 
 In practice traveltime are measured by cross correlating observed and
 predicted waveforms. This particular implementation here measures cross
@@ -41,13 +44,16 @@ explained in [Deichmann1992]_. For more details see the documentation of the
 corresponding
 `Tutorial <http://docs.obspy.org/tutorial/code_snippets/xcorr_pick_correction.html>`_.
 
-
-The adjoint source for the same receiver and component is then given by
+We end up with a pair of adjoint source, different from conventional method using 
+absolute measurement:
 
 .. math::
 
-    f^{\dagger}(t) = - \left[ T^{obs} - T(\mathbf{m}) \right] ~ \frac{1}{N} ~
-    \partial_t \mathbf{s}(T - t, \mathbf{m})
+    f_i^{\dagger}(t) = \sum_{j>i} \frac{\Delta \Delta t_{ij}}{N_{ij}}} 
+    \partial_t s_j \big( T-[t-\Delta T_{i,j}^{syn}] \big) \\
+
+    f_j^{\dagger}(t) = - \sum_{i<i} \frac{\Delta \Delta t_{ij}}{N_{ij}}} 
+        \partial_t s_i \big( T-[t+\Delta T_{i,j}^{syn}] \big) 
 
 For the sake of simplicity we omit the spatial Kronecker delta and define
 the adjoint source as acting solely at the receiver's location. For more
@@ -102,12 +108,12 @@ def cc_adj_DD(s1, s2, shift_syn, dd_shift, deltat, sigma_dt):
 
     misfit = 0.0
 
-    ds1dt = np.gradient(s1, deltat)
+    ds1_vt = np.gradient(s1, deltat)
     ds2_cc_dt, ds2_cc_dtdlna = cc_correction(s2, shift_syn, 0.0)
     ds2_cc_vt = np.gradient(ds2_cc_dt, deltat)
     ds1_cc_dt, ds1_cc_dtdlna = cc_correction(s1, -shift_syn, 0.0)
     ds1_cc_vt = np.gradient(ds1_cc_dt, deltat)
-    nnorm12 = -simps(y=ds1dt*ds2_cc_vt, dx=deltat)
+    nnorm12 = -simps(y=ds1_vt*ds2_cc_vt, dx=deltat)
 
     dd_tshift = dd_shift * deltat
     fp1_t = + 1.0 * ds2_cc_vt * dd_tshift / nnorm12 / sigma_dt**2
