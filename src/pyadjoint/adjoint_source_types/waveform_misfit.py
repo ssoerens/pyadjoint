@@ -131,9 +131,12 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         # for some reason the 0.5 (see 2012 measure_adj mannual, P11) is
         # not in misfit definetion in measure_adj
         # misfit_sum += 0.5 * simps(y=diff_w**2, dx=deltat)
-        misfit_win = simps(y=diff_w**2, dx=deltat)
+        misfit_win = 0.5 * simps(y=diff_w**2, dx=deltat)
         misfit_sum += misfit_win
 
+        # YY: All adjoint sources will need windowing taper again
+        window_taper(diff, taper_percentage=config.taper_percentage,
+                taper_type=config.taper_type)
         adj[left_sample: right_sample] = diff[0:nlen]
 
         measure_wins["type"] = "wf"
@@ -146,8 +149,8 @@ def calculate_adjoint_source(observed, synthetic, config, window,
     ret_val["measurement"] = measurement
 
     if adjoint_src is True:
-        # Reverse in time
-        ret_val["adjoint_source"] = adj[::-1]
+        # YY: NOT to Reverse in time
+        ret_val["adjoint_source"] = adj
 
     if figure:
         # return NotImplemented
