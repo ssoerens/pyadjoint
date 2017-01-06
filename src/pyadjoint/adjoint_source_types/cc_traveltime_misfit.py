@@ -97,24 +97,34 @@ def _xcorr_shift(d, s):
     return time_shift
 
 
-def cc_error(d1, d2, deltat, cc_shift, cc_dlna, sigma_dt_min, sigma_dlna_min):
+def cc_correction(d, cc_shift, cc_dlna):
+    """  correct d by shifting cc_shift and scaling exp(cc_dlna)
     """
-    Estimate error for dt and dlna with uncorrelation assumption
-    """
-    nlen_t = len(d1)
 
-    d2_cc_dt = np.zeros(nlen_t)
-    d2_cc_dtdlna = np.zeros(nlen_t)
+    nlen_t = len(d)
+    d_cc_dt = np.zeros(nlen_t)
+    d_cc_dtdlna = np.zeros(nlen_t)
 
     for index in range(0, nlen_t):
         index_shift = index - cc_shift
 
         if 0 <= index_shift < nlen_t:
             # corrected by c.c. shift
-            d2_cc_dt[index] = d2[index_shift]
+            d_cc_dt[index] = d[index_shift]
 
             # corrected by c.c. shift and amplitude
-            d2_cc_dtdlna[index] = np.exp(cc_dlna) * d2[index_shift]
+            d_cc_dtdlna[index] = np.exp(cc_dlna) * d[index_shift]
+
+    return d_cc_dt, d_cc_dtdlna
+
+
+def cc_error(d1, d2, deltat, cc_shift, cc_dlna, sigma_dt_min, sigma_dlna_min):
+    """
+    Estimate error for dt and dlna with uncorrelation assumption
+    """
+
+    # correct d2 by shifting cc_shift and scaling exp(cc_dlna)
+    d2_cc_dt, d2_cc_dtdlna = cc_correction(d2, cc_shift, cc_dlna)
 
     # time derivative of d2_cc (velocity)
     d2_cc_vel = np.gradient(d2_cc_dtdlna, deltat)

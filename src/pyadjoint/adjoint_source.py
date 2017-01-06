@@ -62,12 +62,14 @@ class AdjointSource(object):
         :param starttime: starttime of adjoint source
         :type starttime: obspy.UTCDateTime
         """
-        if adj_src_type not in self._ad_srcs and \
-                adj_src_type not in self._ad_srcs_DD:
+        if adj_src_type in self._ad_srcs:
+            self.adj_src_name = self._ad_srcs[adj_src_type][1]
+        elif adj_src_type in self._ad_srcs_DD:
+            self.adj_src_name = self._ad_srcs_DD[adj_src_type][1]
+        else:
             raise ValueError("Unknown adjoint source type '%s'." %
                              adj_src_type)
         self.adj_src_type = adj_src_type
-        self.adj_src_name = self._ad_srcs[adj_src_type][1]
         self.misfit = misfit
         self.measurement = measurement
         self.dt = dt
@@ -519,9 +521,9 @@ def calculate_adjoint_source_DD(adj_src_type, observed1, synthetic1,
     else:
         adjoint_source = None
 
-    if config.misfit_type == '1':
+    if config.measure_type == '1':
         observed = observed1.copy()
-    elif config.misfit_type == '2':
+    elif config.measure_type == '2':
         observed = observed2.copy()
     return AdjointSource(adj_src_type, misfit=misfit,
                          adjoint_source=adjoint_source,

@@ -208,5 +208,21 @@ class ConfigInstanteneousPhase(object):
         self.wtr_env = wtr_env
 
 
-class ConfigDoubleDifference(object):
-    pass
+class ConfigDoubleDifferenceCrossCorrelation(object):
+    def __init__(self, min_period, max_period,
+                 taper_type='hann',
+                 taper_percentage=0.3,
+                 measure_type='1',
+                 use_cc_error=False,
+                 dt_sigma_min=1.0,
+                 dlna_sigma_min=0.5):
+
+        self.min_period = min_period
+        self.max_period = max_period
+
+        self.taper_type = taper_type
+        self.taper_percentage = taper_percentage
+        self.measure_type = measure_type
+        self.use_cc_error = use_cc_error
+        self.dt_sigma_min = dt_sigma_min
+        self.dlna_sigma_min = dlna_sigma_min
