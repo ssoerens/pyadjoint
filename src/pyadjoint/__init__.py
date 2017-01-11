@@ -49,5 +49,5 @@ logger.addHandler(ch)
 from .adjoint_source import AdjointSource, calculate_adjoint_source, calculate_adjoint_source_DD  # NOQA
 
 # load configure
-from .config import ConfigMultiTaper, ConfigWaveForm, ConfigCrossCorrelation, ConfigInstanteneousPhase  # NOQA
+from .config import ConfigMultiTaper, ConfigWaveForm, ConfigCrossCorrelation, ConfigExponentiatedPhase  # NOQA
 from .config import ConfigDoubleDifferenceCrossCorrelation   # NOQA

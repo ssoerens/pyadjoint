@@ -603,8 +603,9 @@ def mt_adj(d1, d2, deltat, tapers, dtau_mtm, dlna_mtm, df, nlen_f,
     dlna_mtm_weigh_sqr = dlna_mtm**2 * wq_w
 
     # Integrate with the composite Simpson's rule.
-    misfit_p = 0.5 * 2.0 * simps(y=dtau_mtm_weigh_sqr, dx=df)
-    misfit_q = 0.5 * 2.0 * simps(y=dlna_mtm_weigh_sqr, dx=df)
+    # YY: remove * 2.0
+    misfit_p = 0.5 * simps(y=dtau_mtm_weigh_sqr, dx=df)
+    misfit_q = 0.5 * simps(y=dlna_mtm_weigh_sqr, dx=df)
 
     return fp_t, fq_t, misfit_p, misfit_q
 
@@ -716,18 +717,6 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         cc_tshift = cc_shift * deltat
         cc_dlna = 0.5 * np.log(sum(d**2) / sum(s**2))
 
-        # uncertainty estimate based on cross-correlations
-        sigma_dt_cc = 1.0
-        sigma_dlna_cc = 1.0
-
-        if use_cc_error:
-            sigma_dt_cc, sigma_dlna_cc = cc_error(d, s, deltat, cc_shift,
-                                                  cc_dlna, config.dt_sigma_min,
-                                                  config.dlna_sigma_min)
-
-            logger.debug("cc_dt  : %f +/- %f" % (cc_tshift, sigma_dt_cc))
-            logger.debug("cc_dlna: %f +/- %f" % (cc_dlna, sigma_dlna_cc))
-
         # re-window observed to align observed with synthetic for multitaper
         # measurement:
         left_sample_d = max(left_sample + cc_shift, 0)
@@ -743,6 +732,22 @@ def calculate_adjoint_source(observed, synthetic, config, window,
                          taper_type=config.taper_type)
         else:
             raise Exception
+        
+        # YY: update window border
+        left_sample = left_sample_d
+        right_sample = right_sample_d
+
+        # uncertainty estimate based on cross-correlations
+        sigma_dt_cc = 1.0
+        sigma_dlna_cc = 1.0
+
+        if use_cc_error:
+            sigma_dt_cc, sigma_dlna_cc = cc_error(d, s, deltat, cc_shift,
+                                                  cc_dlna, config.dt_sigma_min,
+                                                  config.dlna_sigma_min)
+
+            logger.debug("cc_dt  : %f +/- %f" % (cc_tshift, sigma_dt_cc))
+            logger.debug("cc_dlna: %f +/- %f" % (cc_dlna, sigma_dlna_cc))
 
         # ===
         # Make decision wihich method to use: c.c. or multi-taper

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding: utf8 -*-
 """
-Instantaneous phase misfit.
+Exponentiated phase misfit.
 
 :copyright:
     created by Yanhua O. Yuan (yanhuay@princeton.edu), 2016
@@ -21,7 +21,7 @@ import numpy as np
 
 # This is the verbose and pretty name of the adjoint source defined in this
 # function.
-VERBOSE_NAME = "Instantaneous Phase Misfit"
+VERBOSE_NAME = "Exponentiated Phase Misfit"
 
 # Long and detailed description of the adjoint source defined in this file.
 # Don't spare any details. This will be rendered as restructured text in the
@@ -96,8 +96,8 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         E_s_wtr = E_s + thrd_s
         E_d_wtr = E_d + thrd_d
 
-        diff_real = s/E_s_wtr - d/E_d_wtr
-        diff_imag = Hilbt_s/E_s_wtr - Hilbt_d/E_d_wtr
+        diff_real = d/E_d_wtr - s/E_s_wtr
+        diff_imag = Hilbt_d/E_d_wtr - Hilbt_s/E_s_wtr
 
         # Integrate with the composite Simpson's rule.
         diff_r = diff_real * -1.0
@@ -107,14 +107,16 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         window_taper(diff_i, taper_percentage=config.taper_percentage,
                      taper_type=config.taper_type)
 
-        misfit_sum += 0.5 * (simps(y=diff_r**2, dx=deltat) +
-                             simps(y=diff_i**2, dx=deltat))
+        misfit_real = 0.5 * simps(y=diff_r**2, dx=deltat)
+        misfit_imag = 0.5 * simps(y=diff_i**2, dx=deltat)
+
+        misfit_sum += misfit_real + misfit_imag 
 
         E_s_wtr_cubic = E_s_wtr**3
-        adj_real = diff_real * Hilbt_s**2 / E_s_wtr_cubic \
-            + np.imag(signal.hilbert(diff_real * s * Hilbt_s / E_s_wtr_cubic))
-        adj_imag = - diff_imag * s * Hilbt_s / E_s_wtr_cubic \
-            - np.imag(signal.hilbert(diff_imag * s**2 / E_s_wtr_cubic))
+        adj_real = - diff_real * Hilbt_s**2 / E_s_wtr_cubic \
+            - np.imag(signal.hilbert(diff_real * s * Hilbt_s / E_s_wtr_cubic))
+        adj_imag =  diff_imag * s * Hilbt_s / E_s_wtr_cubic \
+            + np.imag(signal.hilbert(diff_imag * s**2 / E_s_wtr_cubic))
 
         # YY: All adjoint sources will need windowing taper again
         window_taper(adj_real, taper_percentage=config.taper_percentage,
@@ -124,11 +126,15 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
         adj[left_sample: right_sample] = (adj_real[0:nlen] + adj_imag[0:nlen])
 
-        measure_wins["type"] = "ip"
-        measure_wins["diff_real"] = np.mean(diff_real)
-        measure_wins["diff_imag"] = np.mean(diff_imag)
-        measure_wins["misfit_real"] = diff_real
-        measure_wins["misfit_real"] = diff_imag
+        dreal = np.zeros(nlen_data)
+        dimag = np.zeros(nlen_data)
+        dreal[left_sample: right_sample] = diff_real[0:nlen]
+        dimag[left_sample: right_sample] = diff_imag[0:nlen]
+        measure_wins["type"] = "ep"
+        measure_wins["diff_real"] = dreal
+        measure_wins["diff_imag"] = dimag
+        measure_wins["misfit_real"] = misfit_real 
+        measure_wins["misfit_imag"] = misfit_imag
 
         measurement.append(measure_wins)
 

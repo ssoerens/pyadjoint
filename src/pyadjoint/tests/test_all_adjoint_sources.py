@@ -75,7 +75,7 @@ def test_normal_adjoint_source_calculation(adj_src):
                                             use_cc_error=False,
                                             use_mt_error=False)
 
-    if adj_src == "instantaneous_phase_misfit":
+    if adj_src == "exponentiated_phase_misfit":
         config = pyadjoint.ConfigInstanteneousPhase(min_period=30.0,
                                                     max_period=75.0,
                                                     taper_type='hann',
@@ -145,8 +145,8 @@ def test_no_adjoint_src_calculation_is_honored(adj_src):
                                             use_cc_error=False,
                                             use_mt_error=False)
 
-    if adj_src == "instantaneous_phase_misfit":
-        config = pyadjoint.ConfigInstanteneousPhase(min_period=30.0,
+    if adj_src == "exponentiated_phase_misfit":
+        config = pyadjoint.ConfigExponentiatedPhase(min_period=30.0,
                                                     max_period=75.0,
                                                     taper_type='hann',
                                                     taper_percentage=0.3,

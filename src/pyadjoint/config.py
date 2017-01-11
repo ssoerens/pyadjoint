@@ -195,7 +195,7 @@ class ConfigCrossCorrelation(object):
         self.dlna_sigma_min = dlna_sigma_min
 
 
-class ConfigInstanteneousPhase(object):
+class ConfigExponentiatedPhase(object):
     def __init__(self, min_period, max_period,
                  taper_type='hann',
                  taper_percentage=0.3,
