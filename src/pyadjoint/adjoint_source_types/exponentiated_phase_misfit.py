@@ -110,12 +110,12 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         misfit_real = 0.5 * simps(y=diff_r**2, dx=deltat)
         misfit_imag = 0.5 * simps(y=diff_i**2, dx=deltat)
 
-        misfit_sum += misfit_real + misfit_imag 
+        misfit_sum += misfit_real + misfit_imag
 
         E_s_wtr_cubic = E_s_wtr**3
         adj_real = - diff_real * Hilbt_s**2 / E_s_wtr_cubic \
             - np.imag(signal.hilbert(diff_real * s * Hilbt_s / E_s_wtr_cubic))
-        adj_imag =  diff_imag * s * Hilbt_s / E_s_wtr_cubic \
+        adj_imag = diff_imag * s * Hilbt_s / E_s_wtr_cubic \
             + np.imag(signal.hilbert(diff_imag * s**2 / E_s_wtr_cubic))
 
         # YY: All adjoint sources will need windowing taper again
@@ -133,7 +133,7 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         measure_wins["type"] = "ep"
         measure_wins["diff_real"] = dreal
         measure_wins["diff_imag"] = dimag
-        measure_wins["misfit_real"] = misfit_real 
+        measure_wins["misfit_real"] = misfit_real
         measure_wins["misfit_imag"] = misfit_imag
 
         measurement.append(measure_wins)

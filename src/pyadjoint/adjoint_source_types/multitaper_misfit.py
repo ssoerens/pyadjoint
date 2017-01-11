@@ -732,7 +732,7 @@ def calculate_adjoint_source(observed, synthetic, config, window,
                          taper_type=config.taper_type)
         else:
             raise Exception
-        
+
         # YY: update window border
         left_sample = left_sample_d
         right_sample = right_sample_d
