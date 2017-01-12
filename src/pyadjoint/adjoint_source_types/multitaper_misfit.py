@@ -603,9 +603,8 @@ def mt_adj(d1, d2, deltat, tapers, dtau_mtm, dlna_mtm, df, nlen_f,
     dlna_mtm_weigh_sqr = dlna_mtm**2 * wq_w
 
     # Integrate with the composite Simpson's rule.
-    # YY: remove * 2.0
-    misfit_p = 0.5 * simps(y=dtau_mtm_weigh_sqr, dx=df)
-    misfit_q = 0.5 * simps(y=dlna_mtm_weigh_sqr, dx=df)
+    misfit_p = 0.5 * 2.0 * simps(y=dtau_mtm_weigh_sqr, dx=df)
+    misfit_q = 0.5 * 2.0 * simps(y=dlna_mtm_weigh_sqr, dx=df)
 
     return fp_t, fq_t, misfit_p, misfit_q
 
