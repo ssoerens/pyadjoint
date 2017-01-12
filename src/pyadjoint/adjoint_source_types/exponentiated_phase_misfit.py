@@ -100,15 +100,8 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         diff_imag = Hilbt_d/E_d_wtr - Hilbt_s/E_s_wtr
 
         # Integrate with the composite Simpson's rule.
-        diff_r = diff_real * -1.0
-        diff_i = diff_imag * -1.0
-        window_taper(diff_r, taper_percentage=config.taper_percentage,
-                     taper_type=config.taper_type)
-        window_taper(diff_i, taper_percentage=config.taper_percentage,
-                     taper_type=config.taper_type)
-
-        misfit_real = 0.5 * simps(y=diff_r**2, dx=deltat)
-        misfit_imag = 0.5 * simps(y=diff_i**2, dx=deltat)
+        misfit_real = 0.5 * simps(y=diff_real**2, dx=deltat)
+        misfit_imag = 0.5 * simps(y=diff_imag**2, dx=deltat)
 
         misfit_sum += misfit_real + misfit_imag
 

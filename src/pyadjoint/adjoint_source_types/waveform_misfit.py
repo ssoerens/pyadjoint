@@ -126,13 +126,7 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
         diff = s - d
         # Integrate with the composite Simpson's rule.
-        diff_w = diff * -1.0
-        window_taper(diff_w, taper_percentage=config.taper_percentage,
-                     taper_type=config.taper_type)
-        # for some reason the 0.5 (see 2012 measure_adj mannual, P11) is
-        # not in misfit definetion in measure_adj
-        # misfit_sum += 0.5 * simps(y=diff_w**2, dx=deltat)
-        misfit_win = 0.5 * simps(y=diff_w**2, dx=deltat)
+        misfit_win = 0.5 * simps(y=diff**2, dx=deltat)
         misfit_sum += misfit_win
 
         # YY: All adjoint sources will need windowing taper again
