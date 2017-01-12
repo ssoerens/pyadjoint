@@ -50,4 +50,4 @@ from .adjoint_source import AdjointSource, calculate_adjoint_source, calculate_a
 
 # load configure
 from .config import ConfigMultiTaper, ConfigWaveForm, ConfigCrossCorrelation, ConfigExponentiatedPhase  # NOQA
-from .config import ConfigDoubleDifferenceCrossCorrelation   # NOQA
+from .config import ConfigDoubleDifferenceCrossCorrelation, ConfigDoubleDifferenceMultiTaper   # NOQA

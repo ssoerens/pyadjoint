@@ -570,8 +570,8 @@ def mt_adj(d1, d2, deltat, tapers, dtau_mtm, dlna_mtm, df, nlen_f,
         bottom_q[:] = bottom_q[:] + \
             d2_tw[:, itaper] * d2_tw[:, itaper].conjugate()
 
-    fp_t = np.zeros(nlen_f)
-    fq_t = np.zeros(nlen_f)
+    fp_t = np.zeros(nlen_t)
+    fq_t = np.zeros(nlen_t)
 
     for itaper in range(0, ntaper):
         taper = np.zeros(nlen_f)
@@ -595,8 +595,8 @@ def mt_adj(d1, d2, deltat, tapers, dtau_mtm, dlna_mtm, df, nlen_f,
         q_wt = np.fft.ifft(q_w, nlen_f).real * 2. / deltat
 
         # apply tapering to adjoint source
-        fp_t += p_wt * taper
-        fq_t += q_wt * taper
+        fp_t[0:nlen_t] += p_wt[0:nlen_t] * taper[0:nlen_t]
+        fq_t[0:nlen_t] += q_wt[0:nlen_t] * taper[0:nlen_t]
 
     # calculate misfit
     dtau_mtm_weigh_sqr = dtau_mtm**2 * wp_w
@@ -717,26 +717,6 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         cc_tshift = cc_shift * deltat
         cc_dlna = 0.5 * np.log(sum(d**2) / sum(s**2))
 
-        # re-window observed to align observed with synthetic for multitaper
-        # measurement:
-        left_sample_d = max(left_sample + cc_shift, 0)
-        right_sample_d = min(right_sample + cc_shift, nlen_data)
-
-        nlen_d = right_sample_d - left_sample_d
-
-        if nlen_d == nlen:
-            # Y. Ruan: No need to correct cc_dlna in multitaper measurements
-            d[0:nlen] = observed.data[left_sample_d:right_sample_d]
-            d *= np.exp(-cc_dlna)
-            window_taper(d, taper_percentage=config.taper_percentage,
-                         taper_type=config.taper_type)
-        else:
-            raise Exception
-
-        # YY: update window border
-        left_sample = left_sample_d
-        right_sample = right_sample_d
-
         # uncertainty estimate based on cross-correlations
         sigma_dt_cc = 1.0
         sigma_dlna_cc = 1.0
@@ -748,6 +728,20 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
             logger.debug("cc_dt  : %f +/- %f" % (cc_tshift, sigma_dt_cc))
             logger.debug("cc_dlna: %f +/- %f" % (cc_dlna, sigma_dlna_cc))
+
+        # re-window observed to align observed with synthetic for multitaper
+        # measurement:
+        left_sample_d = max(left_sample + cc_shift, 0)
+        right_sample_d = min(right_sample + cc_shift, nlen_data)
+        nlen_d = right_sample_d - left_sample_d
+        if nlen_d == nlen:
+            # Y. Ruan: No need to correct cc_dlna in multitaper measurements
+            d[0:nlen] = observed.data[left_sample_d:right_sample_d]
+            d *= np.exp(-cc_dlna)
+            window_taper(d, taper_percentage=config.taper_percentage,
+                         taper_type=config.taper_type)
+        else:
+            raise Exception
 
         # ===
         # Make decision wihich method to use: c.c. or multi-taper
@@ -824,8 +818,9 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
         # final decision which misfit will be used for adjoint source.
         if is_mtm:
-            measure_wins["dt"] = np.mean(dtau_mtm[nfreq_min:nfreq_max])
-            measure_wins["dlna"] = np.mean(dlna_mtm[nfreq_min:nfreq_max])
+            measure_wins["type"] = "mtm"
+            measure_wins["dt_w"] = np.mean(dtau_mtm[nfreq_min:nfreq_max])
+            measure_wins["dlna_w"] = np.mean(dlna_mtm[nfreq_min:nfreq_max])
             # calculate multi-taper adjoint source
             fp_t, fq_t, misfit_p, misfit_q =\
                 mt_adj(d, s, deltat, tapers, dtau_mtm, dlna_mtm, df, nlen_f,
@@ -835,9 +830,9 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
             measure_wins["misfit_dt"] = misfit_p
             measure_wins["misfit_dlna"] = misfit_q
-            measure_wins["type"] = "mtm"
 
         else:
+            measure_wins["type"] = "cc"
             cc_dt = cc_shift * deltat
             measure_wins["dt"] = cc_dt
             measure_wins["misfit_dt"] = 0.5 * (cc_dt/sigma_dt_cc)**2
@@ -845,7 +840,6 @@ def calculate_adjoint_source(observed, synthetic, config, window,
             measure_wins["dlna"] = cc_dlna
             measure_wins["misfit_dlna"] = 0.5 * (cc_dlna/sigma_dlna_cc)**2
 
-            measure_wins["type"] = "cc"
             # calculate c.c. adjoint source
             fp_t, fq_t, misfit_p, misfit_q =\
                 cc_adj(s, cc_shift, cc_dlna, deltat, sigma_dt_cc,

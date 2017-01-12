@@ -221,9 +221,9 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
         fp2[left_sample_2:right_sample_2] = fp2_t[0:nlen2]
 
         measure_wins["type"] = "cc_dd"
-        if config.measure_type == "1":
+        if config.measure_type == "dt1":
             measure_wins["dt"] = dd_tshift
-        elif config.measure_type == "2":
+        elif config.measure_type == "dt2":
             measure_wins["dt"] = - dd_tshift
         measure_wins["misfit"] = misfit_p
 
@@ -239,7 +239,7 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
         ret_val_p1["adjoint_source"] = fp1
         ret_val_p2["adjoint_source"] = fp2
 
-    if config.measure_type == "1":
+    if config.measure_type == "dt1":
         if figure:
             generic_adjoint_source_plot(observed1, synthetic1,
                                         ret_val_p1["adjoint_source"],
@@ -247,7 +247,7 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
                                         window1, VERBOSE_NAME)
 
         return ret_val_p1
-    if config.measure_type == "2":
+    if config.measure_type == "dt2":
         if figure:
             generic_adjoint_source_plot(observed2, synthetic2,
                                         ret_val_p2["adjoint_source"],

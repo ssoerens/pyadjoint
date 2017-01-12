@@ -521,9 +521,9 @@ def calculate_adjoint_source_DD(adj_src_type, observed1, synthetic1,
     else:
         adjoint_source = None
 
-    if config.measure_type == '1':
+    if config.measure_type == 'dt1':
         observed = observed1.copy()
-    elif config.measure_type == '2':
+    elif config.measure_type == 'dt2':
         observed = observed2.copy()
     return AdjointSource(adj_src_type, misfit=misfit,
                          adjoint_source=adjoint_source,

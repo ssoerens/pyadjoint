@@ -212,7 +212,7 @@ class ConfigDoubleDifferenceCrossCorrelation(object):
     def __init__(self, min_period, max_period,
                  taper_type='hann',
                  taper_percentage=0.3,
-                 measure_type='1',
+                 measure_type='dt1',
                  use_cc_error=False,
                  dt_sigma_min=1.0,
                  dlna_sigma_min=0.5):
@@ -226,3 +226,55 @@ class ConfigDoubleDifferenceCrossCorrelation(object):
         self.use_cc_error = use_cc_error
         self.dt_sigma_min = dt_sigma_min
         self.dlna_sigma_min = dlna_sigma_min
+
+
+class ConfigDoubleDifferenceMultiTaper(object):
+    def __init__(self, min_period, max_period,
+                 lnpt=15,
+                 transfunc_waterlevel=1.0E-10,
+                 water_threshold=0.02,
+                 ipower_costaper=10,
+                 min_cycle_in_window=0.5,
+                 taper_type='hann',
+                 taper_percentage=0.3,
+                 mt_nw=4.0,
+                 num_taper=5,
+                 dt_fac=2.0,
+                 phase_step=1.5,
+                 err_fac=2.5,
+                 dt_max_scale=3.5,
+                 measure_type='dt1',
+                 dt_sigma_min=1.0,
+                 dlna_sigma_min=0.5,
+                 use_cc_error=True,
+                 use_mt_error=False):
+
+        self.min_period = min_period
+        self.max_period = max_period
+
+        self.lnpt = lnpt
+
+        self.transfunc_waterlevel = transfunc_waterlevel
+        self.water_threshold = water_threshold
+
+        self.ipower_costaper = ipower_costaper
+
+        self.min_cycle_in_window = min_cycle_in_window
+
+        self.taper_type = taper_type
+        self.taper_percentage = taper_percentage
+
+        self.mt_nw = mt_nw
+        self.num_taper = num_taper
+        self.phase_step = phase_step
+
+        self.dt_fac = dt_fac
+        self.err_fac = err_fac
+        self.dt_max_scale = dt_max_scale
+
+        self.dt_sigma_min = dt_sigma_min
+        self.dlna_sigma_min = dlna_sigma_min
+
+        self.measure_type = measure_type
+        self.use_cc_error = use_cc_error
+        self.use_mt_error = use_mt_error
