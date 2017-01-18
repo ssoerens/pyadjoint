@@ -459,11 +459,11 @@ def calculate_adjoint_source_DD(adj_src_type, observed1, synthetic1,
     else:
         figure = None
     try:
-        ret_val = fct(observed1=observed1, synthetic1=synthetic1,
-                      observed2=observed2, synthetic2=synthetic2,
-                      config=config, window1=window1, window2=window2,
-                      adjoint_src=adjoint_src, figure=figure, **kwargs)
-
+        ret_val1, ret_val2 = \
+            fct(observed1=observed1, synthetic1=synthetic1,
+                observed2=observed2, synthetic2=synthetic2,
+                config=config, window1=window1, window2=window2,
+                adjoint_src=adjoint_src, figure=figure, **kwargs)
         if plot and plot_filename:
             figure.savefig(plot_filename)
         elif plot is True:
@@ -477,65 +477,63 @@ def calculate_adjoint_source_DD(adj_src_type, observed1, synthetic1,
             plt.close()
 
     # Get misfit an warn for a negative one.
-    misfit = float(ret_val["misfit"])
-    if misfit < 0.0:
+    misfit1 = float(ret_val1["misfit"])
+    misfit2 = float(ret_val2["misfit"])
+    if misfit1 < 0.0 or misfit2 < 0.0:
         warnings.warn("The misfit value is negative. Be cautious!",
                       PyadjointWarning)
 
     # Get measurement detail for each window
     # To do:
     #   Add checks for the measurements
-    measurement = ret_val["measurement"]
+    measurement1 = ret_val1["measurement"]
+    measurement2 = ret_val2["measurement"]
 
-    if adjoint_src and "adjoint_source" not in ret_val:
+    if adjoint_src and "adjoint_source" not in ret_val1:
+        raise PyadjointError("The actual adjoint source was not calculated "
+                             "by the underlying function although it was "
+                             "requested.")
+    if adjoint_src and "adjoint_source" not in ret_val2:
         raise PyadjointError("The actual adjoint source was not calculated "
                              "by the underlying function although it was "
                              "requested.")
 
-    # Be very defensive. This assures future adjoint source types can be
-    # integrated smoothly.
+# Be very defensive. This assures future adjoint source types can be
+# integrated smoothly.
     if adjoint_src:
-        adjoint_source = ret_val["adjoint_source"]
-        # Raise if wrong type.
-        if not isinstance(adjoint_source, np.ndarray) or \
-                adjoint_source.dtype != np.float64:
-            raise PyadjointError("The adjoint source 1 calculated by the "
-                                 "underlying function is no numpy array with "
-                                 "a `float64` dtype.")
-        if len(adjoint_source.shape) != 1:
-            raise PyadjointError(
-                "The underlying function returned at adjoint source 1 with "
-                "shape %s. It must return a one-dimensional array." % str(
-                    adjoint_source.shape))
-        if len(adjoint_source) != npts:
-            raise PyadjointError(
-                "The underlying function returned an adjoint source 1 with %i "
-                "samples. It must return a function with %i samples which is "
-                "the sample count of the input data." % (
-                    len(adjoint_source), npts))
-        # Make sure the data returned has no infs or NaNs.
-        if not np.isfinite(adjoint_source).all():
-            raise PyadjointError(
-                "The underlying function returned an adjoint source 1 with "
-                "either NaNs or Inf values. This must not be.")
-    else:
-        adjoint_source = None
+        adjoint_source1 = ret_val1["adjoint_source"]
+        _check_adjoint_source(adjoint_source1, npts)
 
-    if config.measure_type == 'dt1':
-        observed = observed1.copy()
-    elif config.measure_type == 'dt2':
-        observed = observed2.copy()
-    return AdjointSource(adj_src_type, misfit=misfit,
-                         adjoint_source=adjoint_source,
-                         measurement=measurement,
-                         dt=observed.stats.delta,
-                         min_period=config.min_period,
-                         max_period=config.max_period,
-                         network=observed.stats.network,
-                         station=observed.stats.station,
-                         component=observed.stats.channel,
-                         location=observed.stats.location,
-                         starttime=observed.stats.starttime)
+        adjoint_source2 = ret_val2["adjoint_source"]
+        _check_adjoint_source(adjoint_source2, npts)
+
+    else:
+        adjoint_source1 = None
+        adjoint_source2 = None
+
+    return [AdjointSource(adj_src_type, misfit=misfit1,
+                          adjoint_source=adjoint_source1,
+                          measurement=measurement1,
+                          dt=observed1.stats.delta,
+                          min_period=config.min_period,
+                          max_period=config.max_period,
+                          network=observed1.stats.network,
+                          station=observed1.stats.station,
+                          component=observed1.stats.channel,
+                          location=observed1.stats.location,
+                          starttime=observed1.stats.starttime),
+            AdjointSource(adj_src_type, misfit=misfit2,
+                          adjoint_source=adjoint_source2,
+                          measurement=measurement2,
+                          dt=observed2.stats.delta,
+                          min_period=config.min_period,
+                          max_period=config.max_period,
+                          network=observed2.stats.network,
+                          station=observed2.stats.station,
+                          component=observed2.stats.channel,
+                          location=observed2.stats.location,
+                          starttime=observed2.stats.starttime)
+            ]
 
 
 def _sanity_checks(observed, synthetic):
@@ -706,3 +704,32 @@ def _discover_adjoint_sources_DD():
             getattr(m, add_attr) if hasattr(m, add_attr) else None)
 
 _discover_adjoint_sources_DD()
+
+
+def _check_adjoint_source(adjoint_source, npts):
+    """
+    Raise if wrong type.
+    """
+
+    if not isinstance(adjoint_source, np.ndarray) or \
+            adjoint_source.dtype != np.float64:
+        raise PyadjointError(
+            "The adjoint source 1 calculated by the "
+            "underlying function is no numpy array with "
+            "a `float64` dtype.")
+    if len(adjoint_source.shape) != 1:
+        raise PyadjointError(
+            "The underlying function returned at adjoint source 1 with "
+            "shape %s. It must return a one-dimensional array." % str(
+                adjoint_source.shape))
+    if len(adjoint_source) != npts:
+        raise PyadjointError(
+            "The underlying function returned an adjoint source 1 with %i "
+            "samples. It must return a function with %i samples which is "
+            "the sample count of the input data." % (
+                len(adjoint_source), npts))
+    # Make sure the data returned has no infs or NaNs.
+    if not np.isfinite(adjoint_source).all():
+        raise PyadjointError(
+            "The underlying function returned an adjoint source 1 with "
+            "either NaNs or Inf values. This must not be.")

@@ -308,7 +308,8 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
     ret_val_p2 = {}
 
     # initialize the measurement dictionary
-    measurement = []
+    measurement1 = []
+    measurement2 = []
 
     nlen_data = len(synthetic1.data)
     deltat = synthetic1.stats.delta
@@ -323,7 +324,8 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
     # ===
     for wins1, wins2 in zip(window1, window2):
 
-        measure_wins = {}
+        measure1_wins = {}
+        measure2_wins = {}
 
         left_window_border_1 = wins1[0]
         right_window_border_1 = wins1[1]
@@ -527,11 +529,12 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
         # final decision which misfit will be used for adjoint source.
         # MT_DD
         if is_mtm:
-            measure_wins["type"] = "mt_dd"
-            if config.measure_type == "dt1":
-                measure_wins["ddt_w"] = ddtau_mtm[nfreq_min:nfreq_max]
-            elif config.measure_type == "d2":
-                measure_wins["ddt_w"] = - ddtau_mtm[nfreq_min:nfreq_max]
+            measure1_wins["type"] = "mt_dd_1"
+            measure1_wins["ddt_w"] = ddtau_mtm[nfreq_min:nfreq_max]
+
+            measure2_wins["type"] = "mt_dd_2"
+            measure2_wins["ddt_w"] = - ddtau_mtm[nfreq_min:nfreq_max]
+
             # calculate multi-taper adjoint source
             fp1_t, fp2_t, misfit_p =\
                 mt_adj_DD(s1, s2, deltat, tapers,
@@ -542,11 +545,12 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
 
         # CC_DD
         else:
-            measure_wins["type"] = "cc_dd"
-            if config.measure_type == "dt1":
-                measure_wins["ddt"] = dd_tshift
-            elif config.measure_type == "dt2":
-                measure_wins["ddt"] = -dd_tshift
+            measure1_wins["type"] = "cc_dd_1"
+            measure1_wins["ddt"] = dd_tshift
+
+            measure2_wins["type"] = "cc_dd_2"
+            measure2_wins["ddt"] = -dd_tshift
+
             # calculate multi-taper adjoint source
             fp1_t, fp2_t, misfit_p = \
                 cc_adj_DD(s1, s2, shift_syn, dd_shift, deltat, sigma_dt_cc)
@@ -561,14 +565,16 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
 
         misfit_sum_p += misfit_p
 
-        measure_wins["misfit"] = misfit_p
+        measure1_wins["misfit"] = misfit_p
+        measure2_wins["misfit"] = misfit_p
 
-        measurement.append(measure_wins)
+        measurement1.append(measure1_wins)
+        measurement2.append(measure2_wins)
 
     ret_val_p1["misfit"] = misfit_sum_p
-    ret_val_p1["measurement"] = measurement
+    ret_val_p1["measurement"] = measurement1
     ret_val_p2["misfit"] = misfit_sum_p
-    ret_val_p2["measurement"] = measurement
+    ret_val_p2["measurement"] = measurement2
 
     if adjoint_src is True:
         # YY: not to reverse in time
@@ -582,7 +588,6 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
                                         ret_val_p1["misfit"],
                                         window1, VERBOSE_NAME)
 
-        return ret_val_p1
     if config.measure_type == "dt2":
         if figure:
             generic_adjoint_source_plot(observed2, synthetic2,
@@ -590,4 +595,4 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
                                         ret_val_p2["misfit"],
                                         window2, VERBOSE_NAME)
 
-        return ret_val_p2
+    return ret_val_p1, ret_val_p2
