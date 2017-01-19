@@ -119,13 +119,9 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
         adj[left_sample: right_sample] = (adj_real[0:nlen] + adj_imag[0:nlen])
 
-        dreal = np.zeros(nlen_data)
-        dimag = np.zeros(nlen_data)
-        dreal[left_sample: right_sample] = diff_real[0:nlen]
-        dimag[left_sample: right_sample] = diff_imag[0:nlen]
         measure_wins["type"] = "ep"
-        measure_wins["diff_real"] = dreal
-        measure_wins["diff_imag"] = dimag
+        measure_wins["diff_real"] = np.mean(diff_real[0:nlen])
+        measure_wins["diff_imag"] = np.mean(diff_imag[0:nlen])
         measure_wins["misfit_real"] = misfit_real
         measure_wins["misfit_imag"] = misfit_imag
 
@@ -136,7 +132,7 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
     if adjoint_src is True:
         # YY: not to Reverse in time
-        ret_val["adjoint_source"] = adj[:]
+        ret_val["adjoint_source"] = adj
 
     if figure:
         # return NotImplemented

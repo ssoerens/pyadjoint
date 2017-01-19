@@ -237,12 +237,13 @@ def mt_measure_select(nfreq_min, nfreq_max, df, nlen, deltat, dtau_w, dt_fac,
     """
 
     # If the c.c. measurements is too small
+    # YY: remove this criterion
     if abs(cc_tshift) < deltat:
         msg = "C.C. time shift less than time domain sample length %f" % deltat
         logger.info(msg)
-        return False
+    #    return False
 
-    # If any mtm measurements is out of the resonable range,
+    # If any mtm measurements is out of the reasonable range,
     # switch from mtm to c.c.
     for j in range(nfreq_min, nfreq_max):
 
@@ -803,11 +804,12 @@ def calculate_adjoint_source(observed, synthetic, config, window,
             sigma_dtau_mt = np.zeros(nlen_f)
             sigma_dlna_mt = np.zeros(nlen_f)
 
-            sigma_phi_mt, sigma_abs_mt, sigma_dtau_mt, sigma_dlna_mt =\
-                mt_error(d, s, deltat, tapers, wvec, df, nlen_f,
-                         waterlevel_mtm, phase_step, nfreq_min, nfreq_max,
-                         cc_tshift, cc_dlna, phi_mtm, abs_mtm, dtau_mtm,
-                         dlna_mtm)
+            if use_mt_error:
+                sigma_phi_mt, sigma_abs_mt, sigma_dtau_mt, sigma_dlna_mt =\
+                    mt_error(d, s, deltat, tapers, wvec, df, nlen_f,
+                             waterlevel_mtm, phase_step, nfreq_min, nfreq_max,
+                             cc_tshift, cc_dlna, phi_mtm, abs_mtm, dtau_mtm,
+                             dlna_mtm)
 
             # check is_mtm again if the multitaper measurement results failed
             # the selctuing criteria.  change is_mtm if it's not okay
@@ -817,9 +819,9 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
         # final decision which misfit will be used for adjoint source.
         if is_mtm:
-            measure_wins["type"] = "mtm"
-            measure_wins["dt_w"] = np.mean(dtau_mtm[nfreq_min:nfreq_max])
-            measure_wins["dlna_w"] = np.mean(dlna_mtm[nfreq_min:nfreq_max])
+            measure_wins["type"] = "mt"
+            measure_wins["dt"] = np.mean(dtau_mtm[nfreq_min:nfreq_max])
+            measure_wins["dlna"] = np.mean(dlna_mtm[nfreq_min:nfreq_max])
             # calculate multi-taper adjoint source
             fp_t, fq_t, misfit_p, misfit_q =\
                 mt_adj(d, s, deltat, tapers, dtau_mtm, dlna_mtm, df, nlen_f,
