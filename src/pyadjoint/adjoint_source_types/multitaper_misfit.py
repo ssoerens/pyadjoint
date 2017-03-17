@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 """
 Multitaper based phase and amplitude misfit and adjoint source.
 
 :copyright:
-    Youyi Ruan (youyir@princeton.edu), 2016
-    Matthieu Lefebvre (ml15@princeton.edu), 2016
-    Yanhua O. Yuan (yanhuay@princeton.edu), 2015
+    created by Yanhua O. Yuan (yanhuay@princeton.edu), 2016
+    modified by Youyi Ruan (youyir@princeton.edu), 2016
+    modified by Matthieu Lefebvre (ml15@princeton.edu), 2016
 :license:
     BSD 3-Clause ("BSD New" or "BSD Simplified")
 """
@@ -20,7 +20,7 @@ from .. import logger
 from ..utils import generic_adjoint_source_plot, window_taper
 from ..config import ConfigMultiTaper
 from ..dpss import dpss_windows
-
+from .cc_traveltime_misfit import _xcorr_shift, cc_error, cc_adj
 
 # This is the verbose and pretty name of the adjoint source defined in this
 # function.
@@ -91,54 +91,6 @@ in which :math:`h_k(t)` is one (the :math:`k`th) of multi-tapers.
 # """
 
 
-def _xcorr_shift(d, s):
-    """
-    Calculate cross correlation shift in points
-    """
-    cc = np.correlate(d, s, mode="full")
-    time_shift = cc.argmax() - len(d) + 1
-    return time_shift
-
-
-def cc_error(d1, d2, deltat, cc_shift, cc_dlna, sigma_dt_min, sigma_dlna_min):
-    """
-    Estimate error for dt and dlna with uncorrelation assumption
-    copied from c.c. misfit. should not duplicate the code but keep it for
-    now and may need to move to utils later
-    """
-    nlen_t = len(d1)
-
-    # make cc-based corrections to d2
-    d2_cc_dt = np.zeros(nlen_t)
-    d2_cc_dtdlna = np.zeros(nlen_t)
-
-    for index in range(0, nlen_t):
-        index_shift = index - cc_shift
-
-        if 0 <= index_shift < nlen_t:
-            d2_cc_dt[index] = d2[index_shift]
-            d2_cc_dtdlna[index] = np.exp(cc_dlna) * d2[index_shift]
-
-    # time derivative of d2_cc (velocity)
-    d2_cc_vel = np.gradient(d2_cc_dtdlna, deltat)
-
-    # Note: Beware of the first and last value in gradient calculation,
-    #       ignored for safety reason, will be added in future
-    sigma_dt_top = np.sum((d1 - d2_cc_dtdlna) ** 2)
-    sigma_dt_bot = np.sum(d2_cc_vel ** 2)
-
-    sigma_dlna_top = sigma_dt_top
-    sigma_dlna_bot = np.sum(d2_cc_dt ** 2)
-
-    sigma_dt = np.sqrt(sigma_dt_top / sigma_dt_bot)
-    sigma_dlna = np.sqrt(sigma_dlna_top / sigma_dlna_bot)
-
-    sigma_dt = max(sigma_dt, sigma_dt_min)
-    sigma_dlna = max(sigma_dlna, sigma_dlna_min)
-
-    return sigma_dt, sigma_dlna
-
-
 def frequency_limit(s, nlen, nlen_f, deltat, df, wtr, ncycle_in_window,
                     min_period, max_period, nw):
     """
@@ -207,17 +159,14 @@ def get_min_frequency_limit(deltat, df, fnum, i_ampmax, ifreq_min,
                             ncycle_in_window, nlen, s_spectra,
                             water_threshold):
     nfreq_min = 0
-    # is_search = True
+    is_search = True
 
-    # === Youyi Ruan 11/03/2016:
-    #    to keep it consistent with measure_adj and not search the minimum
-    #    frequency bound.
-    # for iw in range(fnum - 1, 0, -1):
-    #    if iw < i_ampmax:
-    #        nfreq_min, is_search = search_frequency_limit(is_search, iw,
-    #                                                     nfreq_min, s_spectra,
-    #                                                     water_threshold)
-
+    for iw in range(fnum - 1, 0, -1):
+        if iw < i_ampmax:
+            # YY: update is_search
+            nfreq_min, is_search = \
+                    search_frequency_limit(is_search, iw, nfreq_min,
+                                           s_spectra, water_threshold)
     # assume there are at least N cycles within the window
     return max(nfreq_min,
                int(ncycle_in_window/(nlen*deltat)/df) - 1,
@@ -262,6 +211,7 @@ def search_frequency_limit(is_search, index, nfreq_limit, spectra,
         is_search = True
         nfreq_limit = index
 
+    # YY: return is_search
     return nfreq_limit, is_search
 
 
@@ -286,12 +236,13 @@ def mt_measure_select(nfreq_min, nfreq_max, df, nlen, deltat, dtau_w, dt_fac,
     """
 
     # If the c.c. measurements is too small
+    # YY: remove this criterion
     if abs(cc_tshift) < deltat:
         msg = "C.C. time shift less than time domain sample length %f" % deltat
         logger.info(msg)
-        return False
+    #    return False
 
-    # If any mtm measurements is out of the resonable range,
+    # If any mtm measurements is out of the reasonable range,
     # switch from mtm to c.c.
     for j in range(nfreq_min, nfreq_max):
 
@@ -510,29 +461,6 @@ def mt_error(d1, d2, deltat, tapers, wvec, df, nlen_f, waterlevel_mtm,
     return err_phi, err_abs, err_dtau, err_dlna
 
 
-def cc_adj(synt, cc_shift, cc_dlna, deltat, err_dt_cc, err_dlna_cc):
-    """
-    cross correlation adjoint source and misfit
-    """
-
-    misfit_p = 0.0
-    misfit_q = 0.0
-
-    dsdt = np.gradient(synt) / deltat
-
-    nnorm = simps(y=dsdt*dsdt, dx=deltat)
-    dt_adj = cc_shift * deltat / err_dt_cc**2 / nnorm * dsdt
-
-    mnorm = simps(y=synt*synt, dx=deltat)
-    am_adj = -1.0 * cc_dlna / err_dlna_cc**2 / mnorm * synt
-
-    cc_tshift = cc_shift * deltat
-    misfit_p = 0.5 * (cc_tshift/err_dt_cc)**2
-    misfit_q = 0.5 * (cc_dlna/err_dlna_cc)**2
-
-    return dt_adj, am_adj, misfit_p, misfit_q
-
-
 def mt_adj(d1, d2, deltat, tapers, dtau_mtm, dlna_mtm, df, nlen_f,
            use_cc_error, use_mt_error, nfreq_min, nfreq_max, err_dt_cc,
            err_dlna_cc, err_dtau_mt, err_dlna_mt, wtr):
@@ -642,8 +570,8 @@ def mt_adj(d1, d2, deltat, tapers, dtau_mtm, dlna_mtm, df, nlen_f,
         bottom_q[:] = bottom_q[:] + \
             d2_tw[:, itaper] * d2_tw[:, itaper].conjugate()
 
-    fp_t = np.zeros(nlen_f)
-    fq_t = np.zeros(nlen_f)
+    fp_t = np.zeros(nlen_t)
+    fq_t = np.zeros(nlen_t)
 
     for itaper in range(0, ntaper):
         taper = np.zeros(nlen_f)
@@ -667,8 +595,8 @@ def mt_adj(d1, d2, deltat, tapers, dtau_mtm, dlna_mtm, df, nlen_f,
         q_wt = np.fft.ifft(q_w, nlen_f).real * 2. / deltat
 
         # apply tapering to adjoint source
-        fp_t += p_wt * taper
-        fq_t += q_wt * taper
+        fp_t[0:nlen_t] += p_wt[0:nlen_t] * taper[0:nlen_t]
+        fq_t[0:nlen_t] += q_wt[0:nlen_t] * taper[0:nlen_t]
 
     # calculate misfit
     dtau_mtm_weigh_sqr = dtau_mtm**2 * wp_w
@@ -804,9 +732,7 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         # measurement:
         left_sample_d = max(left_sample + cc_shift, 0)
         right_sample_d = min(right_sample + cc_shift, nlen_data)
-
         nlen_d = right_sample_d - left_sample_d
-
         if nlen_d == nlen:
             # Y. Ruan: No need to correct cc_dlna in multitaper measurements
             d[0:nlen] = observed.data[left_sample_d:right_sample_d]
@@ -885,11 +811,12 @@ def calculate_adjoint_source(observed, synthetic, config, window,
             sigma_dtau_mt = np.zeros(nlen_f)
             sigma_dlna_mt = np.zeros(nlen_f)
 
-            sigma_phi_mt, sigma_abs_mt, sigma_dtau_mt, sigma_dlna_mt =\
-                mt_error(d, s, deltat, tapers, wvec, df, nlen_f,
-                         waterlevel_mtm, phase_step, nfreq_min, nfreq_max,
-                         cc_tshift, cc_dlna, phi_mtm, abs_mtm, dtau_mtm,
-                         dlna_mtm)
+            if use_mt_error:
+                sigma_phi_mt, sigma_abs_mt, sigma_dtau_mt, sigma_dlna_mt =\
+                    mt_error(d, s, deltat, tapers, wvec, df, nlen_f,
+                             waterlevel_mtm, phase_step, nfreq_min, nfreq_max,
+                             cc_tshift, cc_dlna, phi_mtm, abs_mtm, dtau_mtm,
+                             dlna_mtm)
 
             # check is_mtm again if the multitaper measurement results failed
             # the selctuing criteria.  change is_mtm if it's not okay
@@ -899,6 +826,7 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
         # final decision which misfit will be used for adjoint source.
         if is_mtm:
+            measure_wins["type"] = "mt"
             measure_wins["dt"] = np.mean(dtau_mtm[nfreq_min:nfreq_max])
             measure_wins["dlna"] = np.mean(dlna_mtm[nfreq_min:nfreq_max])
             # calculate multi-taper adjoint source
@@ -910,9 +838,9 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
             measure_wins["misfit_dt"] = misfit_p
             measure_wins["misfit_dlna"] = misfit_q
-            measure_wins["type"] = "mtm"
 
         else:
+            measure_wins["type"] = "cc"
             cc_dt = cc_shift * deltat
             measure_wins["dt"] = cc_dt
             measure_wins["misfit_dt"] = 0.5 * (cc_dt/sigma_dt_cc)**2
@@ -920,7 +848,6 @@ def calculate_adjoint_source(observed, synthetic, config, window,
             measure_wins["dlna"] = cc_dlna
             measure_wins["misfit_dlna"] = 0.5 * (cc_dlna/sigma_dlna_cc)**2
 
-            measure_wins["type"] = "cc"
             # calculate c.c. adjoint source
             fp_t, fq_t, misfit_p, misfit_q =\
                 cc_adj(s, cc_shift, cc_dlna, deltat, sigma_dt_cc,
@@ -956,9 +883,9 @@ def calculate_adjoint_source(observed, synthetic, config, window,
     ret_val_q["measurement"] = measurement
 
     if adjoint_src:
-        # Reverse in time and reverse the actual values.
-        ret_val_p["adjoint_source"] = fp[::-1]
-        ret_val_q["adjoint_source"] = fq[::-1]
+        # YY: NOT to Reverse in time and reverse the actual values.
+        ret_val_p["adjoint_source"] = fp
+        ret_val_q["adjoint_source"] = fq
 
     if config.measure_type == "dt":
         if figure:

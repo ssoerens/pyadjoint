@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 """
 Cross correlation traveltime misfit.
 
 :copyright:
-    Youyi Ruan (youyir@princeton.edu) 2016
-    Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
+    created by Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
+    modified by Youyi Ruan (youyir@princeton.edu), 2016
+    modified by Yanhua O. Yuan (yanhuay@princeton.edu), 2017
 :license:
     BSD 3-Clause ("BSD New" or "BSD Simplified")
 """
@@ -96,24 +97,34 @@ def _xcorr_shift(d, s):
     return time_shift
 
 
-def cc_error(d1, d2, deltat, cc_shift, cc_dlna, sigma_dt_min, sigma_dlna_min):
+def cc_correction(d, cc_shift, cc_dlna):
+    """  correct d by shifting cc_shift and scaling exp(cc_dlna)
     """
-    Estimate error for dt and dlna with uncorrelation assumption
-    """
-    nlen_t = len(d1)
 
-    d2_cc_dt = np.zeros(nlen_t)
-    d2_cc_dtdlna = np.zeros(nlen_t)
+    nlen_t = len(d)
+    d_cc_dt = np.zeros(nlen_t)
+    d_cc_dtdlna = np.zeros(nlen_t)
 
     for index in range(0, nlen_t):
         index_shift = index - cc_shift
 
         if 0 <= index_shift < nlen_t:
             # corrected by c.c. shift
-            d2_cc_dt[index] = d2[index_shift]
+            d_cc_dt[index] = d[index_shift]
 
             # corrected by c.c. shift and amplitude
-            d2_cc_dtdlna[index] = np.exp(cc_dlna) * d2[index_shift]
+            d_cc_dtdlna[index] = np.exp(cc_dlna) * d[index_shift]
+
+    return d_cc_dt, d_cc_dtdlna
+
+
+def cc_error(d1, d2, deltat, cc_shift, cc_dlna, sigma_dt_min, sigma_dlna_min):
+    """
+    Estimate error for dt and dlna with uncorrelation assumption
+    """
+
+    # correct d2 by shifting cc_shift and scaling exp(cc_dlna)
+    d2_cc_dt, d2_cc_dtdlna = cc_correction(d2, cc_shift, cc_dlna)
 
     # time derivative of d2_cc (velocity)
     d2_cc_vel = np.gradient(d2_cc_dtdlna, deltat)
@@ -135,6 +146,31 @@ def cc_error(d1, d2, deltat, cc_shift, cc_dlna, sigma_dt_min, sigma_dlna_min):
         sigma_dlna = sigma_dlna_min
 
     return sigma_dt, sigma_dlna
+
+
+def cc_adj(s, cc_shift, cc_dlna, deltat, sigma_dt, sigma_dlna):
+    """
+    cross correlation adjoint source and misfit
+    """
+
+    nlen_t = len(s)
+    fp_t = np.zeros(nlen_t)
+    fq_t = np.zeros(nlen_t)
+    misfit_p = 0.0
+    misfit_q = 0.0
+
+    dsdt = np.gradient(s, deltat)
+    nnorm = - simps(y=dsdt*dsdt, dx=deltat)
+    cc_tshift = cc_shift * deltat
+    fp_t[0:nlen_t] = -1.0 * dsdt[0:nlen_t] * cc_tshift / nnorm / sigma_dt**2
+
+    mnorm = simps(y=s*s, dx=deltat)
+    fq_t[0:nlen_t] = -1.0 * s[0:nlen_t] * cc_dlna / mnorm / sigma_dlna**2
+
+    misfit_p = 0.5 * (cc_tshift/sigma_dt)**2
+    misfit_q = 0.5 * (cc_dlna/sigma_dlna)**2
+
+    return fp_t, fq_t, misfit_p, misfit_q
 
 
 def subsample_xcorr_shift(d, s):
@@ -220,23 +256,31 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         cc_dlna = 0.5 * np.log(sum(d[0:nlen]*d[0:nlen]) /
                                sum(s[0:nlen]*s[0:nlen]))
 
-        sigma_dt, sigma_dlna = cc_error(d, s, deltat, i_shift, cc_dlna,
-                                        config.dt_sigma_min,
-                                        config.dlna_sigma_min)
+        # uncertainty estimate based on cross-correlations
+        sigma_dt = 1.0
+        sigma_dlna = 1.0
 
-        misfit_dt = 0.5 * (t_shift/sigma_dt) ** 2
-        misfit_dlna = 0.5 * (cc_dlna/sigma_dlna) ** 2
+        if config.use_cc_error:
+            sigma_dt, sigma_dlna = \
+                    cc_error(d, s, deltat, i_shift, cc_dlna,
+                             config.dt_sigma_min,
+                             config.dlna_sigma_min)
 
-        misfit_sum_p += misfit_dt
-        misfit_sum_q += misfit_dlna
+        # calculate c.c. adjoint source
+        fp_t, fq_t, misfit_p, misfit_q =\
+            cc_adj(s, i_shift, cc_dlna, deltat,
+                   sigma_dt, sigma_dlna)
 
-        dsdt = np.gradient(s, deltat)
-        nnorm = simps(y=dsdt*dsdt, dx=deltat)
-        fp[left_sample:right_sample] = dsdt[:] * t_shift / nnorm / sigma_dt**2
+        misfit_sum_p += misfit_p
+        misfit_sum_q += misfit_q
 
-        mnorm = simps(y=s*s, dx=deltat)
-        fq[left_sample:right_sample] =\
-            -1.0 * s[:] * cc_dlna / mnorm / sigma_dlna ** 2
+        # YY: All adjoint sources will need windowing taper again
+        window_taper(fp_t, taper_percentage=config.taper_percentage,
+                     taper_type=config.taper_type)
+        window_taper(fq_t, taper_percentage=config.taper_percentage,
+                     taper_type=config.taper_type)
+        fp[left_sample:right_sample] = fp_t[0:nlen]
+        fq[left_sample:right_sample] = fq_t[0:nlen]
 
         # Taper signals following the SAC taper command
         window_taper(fp[left_sample:right_sample],
@@ -248,8 +292,8 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
         measure_wins["type"] = "cc"
         measure_wins["dt"] = t_shift
-        measure_wins["misfit_dt"] = misfit_dt
-        measure_wins["misfit_dlna"] = misfit_dlna
+        measure_wins["misfit_dt"] = misfit_p
+        measure_wins["misfit_dlna"] = misfit_q
 
         measurement.append(measure_wins)
 
