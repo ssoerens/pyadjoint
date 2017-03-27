@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 """
 Double-Difference Cross correlation traveltime misfit.
 
@@ -239,9 +239,9 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
     ret_val_p2["measurement"] = measurement2
 
     if adjoint_src is True:
-        # YY: not to reverse in time
-        ret_val_p1["adjoint_source"] = fp1
-        ret_val_p2["adjoint_source"] = fp2
+        # Reverse in time
+        ret_val_p1["adjoint_source"] = fp1[::-1]
+        ret_val_p2["adjoint_source"] = fp2[::-1]
 
     if config.measure_type == "dt1":
         if figure:
