@@ -826,7 +826,7 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
         # final decision which misfit will be used for adjoint source.
         if is_mtm:
-            measure_wins["type"] = "mt"
+            measure_wins["type"] = "mtm"
             measure_wins["dt"] = np.mean(dtau_mtm[nfreq_min:nfreq_max])
             measure_wins["dlna"] = np.mean(dlna_mtm[nfreq_min:nfreq_max])
             # calculate multi-taper adjoint source
@@ -883,9 +883,9 @@ def calculate_adjoint_source(observed, synthetic, config, window,
     ret_val_q["measurement"] = measurement
 
     if adjoint_src:
-        # YY: NOT to Reverse in time and reverse the actual values.
-        ret_val_p["adjoint_source"] = fp
-        ret_val_q["adjoint_source"] = fq
+        # Reverse in time and reverse the actual values.
+        ret_val_p["adjoint_source"] = fp[::-1]
+        ret_val_q["adjoint_source"] = fq[::-1]
 
     if config.measure_type == "dt":
         if figure:
