@@ -5,6 +5,7 @@ Double-Difference Multitaper traveltime misfit.
 
 :copyright:
     created by Yanhua O. Yuan (yanhuay@princeton.edu), 2017
+    modified by Ridvan Orsvuran (orsvuran@geoazur.unice.fr), 2017
 :license:
     BSD 3-Clause ("BSD New" or "BSD Simplified")
 """
@@ -21,6 +22,8 @@ from pyadjoint.adjoint_source_types.cc_traveltime_misfit \
 from pyadjoint.adjoint_source_types.multitaper_misfit \
         import frequency_limit, mt_measure, mt_error
 from .cc_traveltime_misfit_DD import cc_adj_DD
+
+import warnings
 
 VERBOSE_NAME = "Double-Difference Multitaper Traveltime Misfit"
 
@@ -90,6 +93,37 @@ ADDITIONAL_PARAMETERS = r"""
     The taper type, supports anything :meth:`obspy.core.trace.Trace.taper`
     can use. Defaults to ``"hann"``.
 """
+
+
+def rewindow(data, left_sample, right_sample, shift):
+    """Align the window according to shift
+    """
+    nlen_data = len(data)
+    nlen = right_sample - left_sample
+
+    lindex = 0
+    left_shifted = left_sample + shift
+    if left_shifted < 0:
+        warnings.warn("Re-window due to left shift is out of bounds.")
+        lindex = -1*left_shifted
+        left_shifted = 0
+    rindex = nlen
+    right_shifted = right_sample + shift
+    if right_shifted > nlen_data:
+        # print("--------")
+        # print(left_shifted, right_shifted)
+        # print(lindex, rindex)
+        warnings.warn("Re-window due to right shift is out of bounds.")
+        rindex = rindex - (right_shifted - nlen_data)
+        right_shifted = nlen_data
+        # print("++++++++")
+        # print(left_shifted, right_shifted)
+        # print(lindex, rindex)
+        # print("--------")
+
+    data_shifted = np.zeros(nlen)
+    data_shifted[lindex:rindex] = data[left_shifted:right_shifted]
+    return data_shifted, left_shifted, right_shifted
 
 
 def mt_adj_DD(s1, s2, deltat, tapers, ddtau_mtm, ddlna_mtm, df, nlen_f,
@@ -392,40 +426,37 @@ def calculate_adjoint_source_DD(observed1, synthetic1, observed2, synthetic2,
                              config.dlna_sigma_min)
 
         # re-window d1 to align with d2 for multitaper measurement
-        left_sample_1d = max(left_sample_1 + shift_obs, 0)
-        right_sample_1d = min(right_sample_1 + shift_obs, nlen_data)
-        nlen_1d = right_sample_1d - left_sample_1d
-        if nlen_1d == nlen1:
-            d1_cc = np.zeros(nlen)
-            # No need to correct cc_dlna in multitaper measurements
-            d1_cc[0:nlen1] = observed1.data[left_sample_1d:right_sample_1d]
-            d1_cc *= np.exp(-cc_dlna_obs)
-            window_taper(d1_cc[0:nlen1],
-                         taper_percentage=config.taper_percentage,
-                         taper_type=config.taper_type)
-        else:
-            raise Exception
+        d1_cc = np.zeros(nlen)
+        d1_shifted, _, _ = rewindow(observed1.data,
+                                    left_sample_1,
+                                    right_sample_1,
+                                    shift_obs)
+
+        d1_cc[0:len(d1_shifted)] = d1_shifted
+        # No need to correct cc_dlna in multitaper measurements
+        d1_cc *= np.exp(-cc_dlna_obs)
+        window_taper(d1_cc[0:len(d1_shifted)],
+                     taper_percentage=config.taper_percentage,
+                     taper_type=config.taper_type)
 
         # re-window s1 to align with s2 for multitaper measurement
-        left_sample_1s = max(left_sample_1 + shift_syn, 0)
-        right_sample_1s = min(right_sample_1 + shift_syn, nlen_data)
-        nlen_1s = right_sample_1s - left_sample_1s
-        if nlen_1s == nlen1:
-            s1_cc = np.zeros(nlen)
-            # No need to correct cc_dlna in multitaper measurements
-            s1_cc[0:nlen1] = synthetic1.data[left_sample_1s:right_sample_1s]
-            s1_cc *= np.exp(-cc_dlna_syn)
-            window_taper(s1_cc[0:nlen1],
-                         taper_percentage=config.taper_percentage,
-                         taper_type=config.taper_type)
-        else:
-            raise Exception
+        s1_cc = np.zeros(nlen)
+        s1_shifted, left_sample_1, right_sample_1 = rewindow(synthetic1.data,
+                                                             left_sample_1,
+                                                             right_sample_1,
+                                                             shift_syn)
+
+        s1_cc[0:len(s1_shifted)] = s1_shifted
+        # No need to correct cc_dlna in multitaper measurements
+        s1_cc *= np.exp(-cc_dlna_syn)
+        window_taper(s1_cc[0:len(s1_shifted)],
+                     taper_percentage=config.taper_percentage,
+                     taper_type=config.taper_type)
 
         # update
         d1 = d1_cc
         s1 = s1_cc
-        right_sample_1 = right_sample_1s
-        left_sample_1 = left_sample_1s
+        nlen1 = right_sample_1 - left_sample_1
 
         # ===
         # Make decision wihich method to use: c.c. or multi-taper
