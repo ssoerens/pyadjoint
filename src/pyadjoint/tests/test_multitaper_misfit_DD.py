@@ -26,7 +26,7 @@ def test_rewindow_zero_shift(sample_data):
     right_sample = 4
     shift = 0
     shifted_data, li, ri = rewindow(sample_data,
-                            left_sample, right_sample, shift)
+                                    left_sample, right_sample, shift)
     assert np.array_equal(shifted_data, sample_data[left_sample:right_sample])
 
 
