@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 :copyright:
-    Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
+    created by Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
+    modified by Yanhua O. Yuan (yanhuay@princeton.edu), 2017
 :license:
     BSD 3-Clause ("BSD New" or "BSD Simplified")
 """
@@ -45,8 +46,8 @@ ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
 
 # Main objects and functions available at the top level.
-from .adjoint_source import AdjointSource, calculate_adjoint_source  # NOQA
+from .adjoint_source import AdjointSource, calculate_adjoint_source, calculate_adjoint_source_DD  # NOQA
 
 # load configure
-from .config import ConfigMultiTaper, ConfigWaveForm, ConfigCrossCorrelation  # NOQA
-from .config import ConfigDoubleDifference, ConfigInstanteneousPhase    # NOQA
+from .config import ConfigMultiTaper, ConfigWaveForm, ConfigCrossCorrelation, ConfigExponentiatedPhase  # NOQA
+from .config import ConfigDoubleDifferenceCrossCorrelation, ConfigDoubleDifferenceMultiTaper   # NOQA

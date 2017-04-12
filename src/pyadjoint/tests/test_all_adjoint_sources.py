@@ -5,7 +5,8 @@ Automated tests for all defined adjoint sources. Essentially just checks
 that they all work and do something.
 
 :copyright:
-    Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
+    created by Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
+    modified by Yanhua O. Yuan (yanhuay@princeton.edu), 2017
 :license:
     BSD 3-Clause ("BSD New" or "BSD Simplified")
 """
@@ -74,6 +75,13 @@ def test_normal_adjoint_source_calculation(adj_src):
                                             use_cc_error=False,
                                             use_mt_error=False)
 
+    if adj_src == "exponentiated_phase_misfit":
+        config = pyadjoint.ConfigExponentiatedPhase(min_period=30.0,
+                                                    max_period=75.0,
+                                                    taper_type='hann',
+                                                    taper_percentage=0.3,
+                                                    wtr_env=0.2)
+
     a_src = pyadjoint.calculate_adjoint_source(adj_src_type=adj_src,
                                                observed=obs,
                                                synthetic=syn,
@@ -133,6 +141,13 @@ def test_no_adjoint_src_calculation_is_honored(adj_src):
                                             dlna_sigma_min=0.5,
                                             use_cc_error=False,
                                             use_mt_error=False)
+
+    if adj_src == "exponentiated_phase_misfit":
+        config = pyadjoint.ConfigExponentiatedPhase(min_period=30.0,
+                                                    max_period=75.0,
+                                                    taper_type='hann',
+                                                    taper_percentage=0.3,
+                                                    wtr_env=0.2)
 
     a_src = pyadjoint.calculate_adjoint_source(
         adj_src_type=adj_src, observed=obs,
