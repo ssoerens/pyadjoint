@@ -146,8 +146,7 @@ def calculate_adjoint_source(observed, synthetic, config, window,
     ret_val["measurement"] = measurement
 
     if adjoint_src is True:
-        # YY: NOT to Reverse in time
-        ret_val["adjoint_source"] = adj
+        ret_val["adjoint_source"] = adj[::-1]
 
     if figure:
         # return NotImplemented
