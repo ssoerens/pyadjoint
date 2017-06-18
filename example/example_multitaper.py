@@ -13,6 +13,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import yaml
+import pyflex
 import pyadjoint
 import argparse
 
@@ -54,14 +55,36 @@ def read_yaml_parfile(filename):
     return config, src_type
 
 def read_seismogram():
-    # read observed and synhtetic data
+    """
+    read observed and synhtetic data in SAC format
+    headers are added previously
+    """
     obsd, synt = pyadjoint.utils.get_example_sac_data()
-    return obsd, synt
 
-def read_window():
-    # window is a list with select time windows, [start_win, end_win]
-    window = [[3313.6, 3756.0]]
-    return window
+    return obsd[0], synt[0]
+
+def select_window(obsd, synt):
+    """
+    window is a list with select time windows: [[start_win, end_win], ... ]
+    the windows are selected by pyflex
+    """
+    config = pyflex.Config(min_period=60.0, max_period=100.0,
+                           stalta_waterlevel=0.08, tshift_acceptance_level=15.0,
+                           dlna_acceptance_level=1.0, cc_acceptance_level=0.80,
+                           c_0=0.7, c_1=4.0, c_2=0.0, c_3a=1.0, c_3b=2.0,
+                           c_4a=3.0, c_4b=10.0)
+
+    windows = pyflex.select_windows(obsd, synt, config, plot=True)
+    print(windows)
+
+    window_list = []
+
+    for win in windows:
+        window_list.append([win.left*obsd.stats.delta,
+                            win.right*obsd.stats.delta])
+
+    print(window_list)
+    return window_list
 
 # multitaper_adjoint_source(adj_src):
 def multitaper_adjoint_source(obsd, synt, window, config, src_type):
@@ -76,7 +99,8 @@ def multitaper_adjoint_source(obsd, synt, window, config, src_type):
         config=config,
         window=window,
         adjoint_src=True,
-        plot=False)
+        plot=True)
+
     return a_src
 
 
@@ -85,16 +109,27 @@ if __name__ == "__main__":
     parser.add_argument('-p', action='store', dest='paramfile',required=True)
     args = parser.parse_args()
 
+    # read config file and adjoint source type
     config, src_type = read_yaml_parfile(args.paramfile)
-    obsd, synt = read_seismogram()
-    window = read_window()
 
+    # read example data from pyadjoint/src/pyadjoint/example_data
+    obsd, synt = read_seismogram()
+
+    # select window using pyflex:
+    #   https://github.com/wjlei1990/pyflex/tree/devel
+    window = select_window(obsd, synt)
+
+    # calculate adjoint sources
+    # Note: turn on the DEBUG mode for more details:
+    # In "pyadjoint/src/pyadjoint/__init__.py"
+    #       logger.setLevel(logging.DEBUG)
     adjsrc = multitaper_adjoint_source(obsd, synt, window, config, src_type)
 
+    # write adjoint source in txt format
     filename = "%s.%s.adj" % ("example", config.measure_type)
     adjsrc.write(filename=filename, format="SPECFEM", time_offset=0)
 
+    # output some information for checking
     for win in adjsrc.measurement:
         print ("dt: %f   misfit_dt: %f type: %s" %
                (win["dt"], win["misfit_dt"], win["type"]))
-
