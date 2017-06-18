@@ -52,6 +52,25 @@ def read_yaml_parfile(filename):
             use_cc_error=config_dict["use_cc_error"],
             use_mt_error=config_dict["use_mt_error"])
 
+    if src_type == "waveform_misfit":
+        config = pyadjoint.ConfigWaveForm(
+            min_period=config_dict["min_period"],
+            max_period=config_dict["max_period"],
+            taper_type=config_dict["taper_type"],
+            taper_percentage=config_dict["taper_percentage"])
+
+
+    if src_type == "cc_traveltime_misfit":
+        config = pyadjoint.ConfigCrossCorrelation(
+            min_period=config_dict["min_period"],
+            max_period=config_dict["max_period"],
+            measure_type=config_dict["measure_type"],
+            use_cc_error=config_dict["use_cc_error"],
+            dt_sigma_min=config_dict["dt_sigma_min"],
+            dlna_sigma_min=config_dict["dlna_sigma_min"],
+            taper_type=config_dict["taper_type"],
+            taper_percentage=config_dict["taper_percentage"])
+
     return config, src_type
 
 def read_seismogram():
@@ -126,10 +145,18 @@ if __name__ == "__main__":
     adjsrc = multitaper_adjoint_source(obsd, synt, window, config, src_type)
 
     # write adjoint source in txt format
-    filename = "%s.%s.adj" % ("example", config.measure_type)
+    if src_type == "waveform_misfit":
+        filename = "%s.%s.adj" % ("example", "wf")
+    else:
+        filename = "%s.%s.adj" % ("example", config.measure_type)
+
     adjsrc.write(filename=filename, format="SPECFEM", time_offset=0)
 
     # output some information for checking
-    for win in adjsrc.measurement:
-        print ("dt: %f   misfit_dt: %f type: %s" %
-               (win["dt"], win["misfit_dt"], win["type"]))
+    if src_type == "waveform_misfit":
+        for win in adjsrc.measurement:
+            print(win)
+    else:
+        for win in adjsrc.measurement:
+            print ("dt: %f   misfit_dt: %f type: %s" %
+                   (win["dt"], win["misfit_dt"], win["type"]))
