@@ -207,7 +207,7 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
     if not isinstance(config, ConfigCrossCorrelation):
         raise ValueError("Wrong configure parameters for cross correlation "
-                         "adjoint source")
+                        "adjoint source")
 
     ret_val_p = {}
     ret_val_q = {}
@@ -230,8 +230,8 @@ def calculate_adjoint_source(observed, synthetic, config, window,
 
         measure_wins = {}
 
-        left_window_border = wins[0]
-        right_window_border = wins[1]
+        left_window_border = wins.left
+        right_window_border = wins.right
 
         left_sample = int(np.floor(left_window_border / deltat)) + 1
         nlen = int(np.floor((right_window_border -
