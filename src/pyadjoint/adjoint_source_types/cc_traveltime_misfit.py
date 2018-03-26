@@ -233,10 +233,14 @@ def calculate_adjoint_source(observed, synthetic, config, window,
         left_window_border = wins.left
         right_window_border = wins.right
 
-        left_sample = int(np.floor(left_window_border / deltat)) + 1
-        nlen = int(np.floor((right_window_border -
-                             left_window_border) / deltat)) + 1
-        right_sample = left_sample + nlen
+#         left_sample = int(np.floor(left_window_border / deltat)) + 1
+#         nlen = int(np.floor((right_window_border -
+#                              left_window_border) / deltat)) + 1
+#         right_sample = left_sample + nlen
+
+        left_sample = left_window_border
+        right_sample = right_window_border
+        nlen = right_sample - left_sample
 
         d = np.zeros(nlen)
         s = np.zeros(nlen)
